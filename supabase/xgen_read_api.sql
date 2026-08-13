@@ -1,5 +1,5 @@
 -- Xgen public read API for six-digit-thai-lao.
--- The browser receives only active market names and at most four recent results.
+-- The browser receives only active market names and at most 30 recent results.
 
 create schema if not exists xgen_private;
 revoke all on schema xgen_private from public;
@@ -47,7 +47,7 @@ as $$
     and m.market_key = p_market_key
     and p_market_key ~ '^market_[0-9]{3}$'
   order by r.draw_date desc, r.created_at desc
-  limit least(greatest(coalesce(p_limit, 4), 1), 4);
+  limit least(greatest(coalesce(p_limit, 4), 1), 30);
 $$;
 
 revoke all on function xgen_private.list_markets() from public;
@@ -93,4 +93,4 @@ grant execute on function public.xgen_recent_results(text, integer) to anon, aut
 comment on function public.xgen_list_markets() is
   'Read-only market list for Xgen. No result mutation capability.';
 comment on function public.xgen_recent_results(text, integer) is
-  'Read-only Xgen history endpoint capped at four rows per active market.';
+  'Read-only Xgen history endpoint capped at 30 rows per active market.';

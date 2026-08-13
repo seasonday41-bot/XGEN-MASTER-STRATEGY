@@ -296,9 +296,9 @@ async function calculate() {
   const selected = markets.find((item) => item.market_key === marketKey)
   els.market.disabled = true
   els.refresh.disabled = true
-  setStatus('กำลังอ่าน 4 งวดล่าสุด...', 'loading')
+  setStatus('กำลังวิเคราะห์ข้อมูลย้อนหลัง...', 'loading')
   try {
-    const history = await loadRecentResults(marketKey, 4)
+    const history = await loadRecentResults(marketKey, 30)
     const analysis = analyzeHistory(history)
     renderResult(selected.market_name, analysis)
     setStatus(`เชื่อมต่อแล้ว • อัปเดตถึง ${formatThaiDate(analysis.source.draw_date)}`, 'ready')

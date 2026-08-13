@@ -56,10 +56,53 @@ export function calculateDoubleAnalysis(top3, bottom2) {
 
   return {
     pattern,
-    message: repeated
-      ? `พบ${pattern} • เฝ้าระวังเบิ้ล/หาม`
-      : 'ไม่พบเบิ้ล/หาม • เน้นรูดสลับ',
     doubles: doubleDigits.map((digit) => `${digit}${digit}`),
+  }
+}
+
+export function hasRepeatedTop(top3) {
+  if (!/^\d{3}$/.test(top3)) {
+    throw new Error('ผลรางวัล 3 ตัวบนไม่ถูกต้อง')
+  }
+
+  const [first, second, third] = top3
+  return first === second || second === third || first === third
+}
+
+export function calculateDoubleProbability(history, maxDraws = 30, minSamples = 15) {
+  if (!Array.isArray(history)) {
+    throw new Error('ข้อมูลย้อนหลังไม่ถูกต้อง')
+  }
+
+  // History is newest-first. The oldest row is the starting point, so every
+  // newer row becomes one walk-forward outcome without looking into the future.
+  const outcomes = history.slice(0, maxDraws).slice(0, -1)
+  const samples = outcomes.length
+  const hits = outcomes.filter((draw) => hasRepeatedTop(draw.top3)).length
+
+  if (samples < minSamples) {
+    return {
+      percentage: null,
+      hits,
+      samples,
+      advice: 'ข้อมูลยังไม่พอ',
+      message: 'โอกาสเบิ้ล — • ข้อมูลยังไม่พอ',
+    }
+  }
+
+  const percentage = Math.round((hits / samples) * 100)
+  const advice = percentage >= 40
+    ? 'เน้นเบิ้ล'
+    : percentage >= 30
+      ? 'ระวังเบิ้ล'
+      : 'เน้นรูดสลับ'
+
+  return {
+    percentage,
+    hits,
+    samples,
+    advice,
+    message: `โอกาสเบิ้ล ${percentage}% • ${advice}`,
   }
 }
 
@@ -171,6 +214,9 @@ export function analyzeHistory(history) {
   const pin2 = selectColdPairs(win6, recent)
   const strongDigit = selectStrongDigit(pin2, win6)
   const rud = resolveUniqueRud(calculatedRud, strongDigit, win6)
-  const doubleAnalysis = calculateDoubleAnalysis(source.top3, source.bottom2)
+  const doubleAnalysis = {
+    ...calculateDoubleAnalysis(source.top3, source.bottom2),
+    ...calculateDoubleProbability(history),
+  }
   return { source, recent, rud, win6, pin2, strongDigit, doubleAnalysis }
 }
