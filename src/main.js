@@ -1,6 +1,7 @@
 import '@fontsource-variable/noto-sans-thai'
 import './style.css'
 import { analyzeHistory } from './formula.js'
+import { formatCopyText } from './copy.js'
 import { loadMarkets, loadRecentResults } from './supabase.js'
 
 const app = document.querySelector('#app')
@@ -301,15 +302,7 @@ els.historyToggle.addEventListener('click', () => {
 })
 els.copy.addEventListener('click', async () => {
   if (!current) return
-  const text = [
-    `🍀 Xgen • ${current.marketName}`,
-    `ผลตั้งต้น ${current.source.top3}-${current.source.bottom2}`,
-    `🔥 ตัวแรง: ${current.strongDigit.digit}`,
-    `⚡ รูด: ${current.rud.join(' • ')}`,
-    `✨ WIN6: ${current.win6.join('')}`,
-    `🎯 เจาะ 2: ${current.pin2.map((item) => item.pair).join(' • ')}`,
-    '↔️ คัดจากผลย้อนหลัง 4 งวด • กลับได้',
-  ].join('\n')
+  const text = formatCopyText(current)
   try {
     await navigator.clipboard.writeText(text)
     els.copy.textContent = 'คัดลอกแล้ว ✓'
