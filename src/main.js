@@ -246,8 +246,8 @@ function renderResult(marketName, analysis) {
   els.rud.innerHTML = analysis.rud.map((digit, index) => `
     <div class="rud-item ${index === 0 ? 'main' : 'secondary'}"><i aria-hidden="true"></i><b>${digit}</b><small>${index === 0 ? 'รูดหลัก' : 'รูดรอง'}</small></div>
   `).join('')
-  els.win6.innerHTML = analysis.win6.map((digit, index) => `
-    <span class="digit ${index < 2 ? 'locked' : ''}">${digit}</span>
+  els.win6.innerHTML = analysis.win6.map((digit) => `
+    <span class="digit ${analysis.rud.includes(digit) ? 'locked' : ''}">${digit}</span>
   `).join('')
   els.strongDigit.textContent = analysis.strongDigit.digit
   els.strongSupport.textContent = `อยู่ใน ${analysis.strongDigit.appearances}/5 คู่`

@@ -116,14 +116,30 @@ export function selectStrongDigit(pin2, win6 = []) {
   )[0]
 }
 
+export function resolveUniqueRud(rud, strongDigit, win6 = []) {
+  const [rudMain, rudSecondary] = rud
+  if (rudMain !== rudSecondary) return [rudMain, rudSecondary]
+
+  const strongValue = typeof strongDigit === 'object' ? strongDigit?.digit : strongDigit
+  const replacement = [strongValue, ...win6]
+    .find((digit) => Number.isInteger(digit) && digit !== rudMain)
+
+  if (replacement === undefined) {
+    throw new Error('ไม่พบเลขสำหรับแทนรูดรองที่ซ้ำ')
+  }
+
+  return [rudMain, replacement]
+}
+
 export function analyzeHistory(history) {
   if (!Array.isArray(history) || history.length < 4) {
     throw new Error('ต้องมีผลย้อนหลังอย่างน้อย 4 งวด')
   }
   const recent = history.slice(0, 4)
   const source = recent[0]
-  const { rud, win6 } = calculateWin6(source.top3, source.bottom2)
+  const { rud: calculatedRud, win6 } = calculateWin6(source.top3, source.bottom2)
   const pin2 = selectColdPairs(win6, recent)
   const strongDigit = selectStrongDigit(pin2, win6)
+  const rud = resolveUniqueRud(calculatedRud, strongDigit, win6)
   return { source, recent, rud, win6, pin2, strongDigit }
 }

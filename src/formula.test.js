@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeHistory, calculateWin6, selectColdPairs, selectStrongDigit } from './formula.js'
+import {
+  analyzeHistory,
+  calculateWin6,
+  resolveUniqueRud,
+  selectColdPairs,
+  selectStrongDigit,
+} from './formula.js'
 
 describe('Xgen formula', () => {
   it('คำนวณ 240-56 เป็นรูด 6-7 และ WIN6 675280', () => {
@@ -43,5 +49,17 @@ describe('Xgen formula', () => {
       appearances: 2,
       scoreTotal: 3,
     })
+  })
+
+  it('ใช้ตัวแรงแทนรูดรองเมื่อรูดหลักและรูดรองซ้ำกัน', () => {
+    expect(resolveUniqueRud([7, 7], { digit: 0 }, [7, 9, 3, 4, 0, 6])).toEqual([7, 0])
+  })
+
+  it('ใช้เลขถัดไปใน WIN6 เมื่อตัวแรงยังซ้ำกับรูดหลัก', () => {
+    expect(resolveUniqueRud([7, 7], { digit: 7 }, [7, 9, 3, 4, 0, 6])).toEqual([7, 9])
+  })
+
+  it('คงรูดเดิมเมื่อรูดหลักและรูดรองไม่ซ้ำกัน', () => {
+    expect(resolveUniqueRud([6, 7], { digit: 5 }, [6, 7, 5, 2, 8, 0])).toEqual([6, 7])
   })
 })
