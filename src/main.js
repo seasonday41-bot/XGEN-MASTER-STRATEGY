@@ -25,30 +25,37 @@ app.innerHTML = `
         <small>ตลาด</small>
       </div>
       <div class="hero-footer">
-        <span>◆ RECENT-4 INTELLIGENCE</span>
+        <span>◆ XGEN ELITE ANALYTICS</span>
         <span>REAL DATA • SUPABASE</span>
       </div>
     </header>
 
-    <section class="control-card">
-      <div class="control-heading">
+    <section id="controlCard" class="control-card">
+      <button id="marketToggle" class="control-heading" type="button" aria-expanded="true" aria-controls="marketPicker">
         <div class="control-symbol" aria-hidden="true">⌕</div>
-        <div><p>MARKET SELECTOR</p><h2>ค้นหาและเลือกตลาด</h2></div>
-        <span class="market-count"><b data-market-total>—</b> ตลาดพร้อมใช้</span>
-      </div>
-      <label class="sr-only" for="marketSearch">ค้นหาตลาด</label>
-      <div class="search-field">
-        <span aria-hidden="true">⌕</span>
-        <input id="marketSearch" type="search" inputmode="search" autocomplete="off" placeholder="พิมพ์ชื่อตลาด เช่น ลาวพัฒนา" aria-controls="searchResults" aria-expanded="false" disabled>
-        <button id="clearSearch" class="clear-search" type="button" aria-label="ล้างคำค้นหา" hidden>×</button>
-      </div>
-      <div id="searchResults" class="search-results hidden" role="listbox" aria-label="ผลการค้นหาตลาด"></div>
-      <div class="select-label"><span>หรือเลือกจากทั้งหมด</span></div>
-      <div class="select-row">
-        <select id="market" aria-label="เลือกตลาด" disabled>
-          <option>กำลังโหลดตลาด...</option>
-        </select>
-        <button id="refresh" class="icon-button" type="button" aria-label="โหลดข้อมูลใหม่" title="โหลดข้อมูลใหม่">↻</button>
+        <div><p>MARKET SELECTOR</p><h2 id="pickerTitle">ค้นหาและเลือกตลาด</h2></div>
+        <span class="heading-meta">
+          <span class="market-count"><b data-market-total>—</b><span> ตลาดพร้อมใช้</span></span>
+          <i class="collapse-chevron" aria-hidden="true"></i>
+        </span>
+      </button>
+      <div id="marketPicker" class="market-picker">
+        <label class="sr-only" for="marketSearch">ค้นหาตลาด</label>
+        <div class="search-field">
+          <span aria-hidden="true">⌕</span>
+          <input id="marketSearch" type="search" inputmode="search" autocomplete="off" placeholder="พิมพ์ชื่อตลาด เช่น ลาวพัฒนา" aria-controls="searchResults" aria-expanded="false" disabled>
+          <button id="clearSearch" class="clear-search" type="button" aria-label="ล้างคำค้นหา" hidden>×</button>
+        </div>
+        <div id="searchResults" class="search-results hidden" role="listbox" aria-label="ผลการค้นหาตลาด"></div>
+        <div class="select-label"><span>หรือเลือกจากทั้งหมด</span></div>
+        <div class="select-row">
+          <div class="select-wrap">
+            <select id="market" aria-label="เลือกตลาด" disabled>
+              <option>กำลังโหลดตลาด...</option>
+            </select>
+          </div>
+          <button id="refresh" class="icon-button" type="button" aria-label="โหลดข้อมูลใหม่" title="โหลดข้อมูลใหม่">↻</button>
+        </div>
       </div>
       <div id="status" class="status loading"><span></span>กำลังเชื่อมต่อ six-digit-thai-lao</div>
     </section>
@@ -121,6 +128,9 @@ app.innerHTML = `
 
 const els = {
   marketTotals: document.querySelectorAll('[data-market-total]'),
+  controlCard: document.querySelector('#controlCard'),
+  marketToggle: document.querySelector('#marketToggle'),
+  pickerTitle: document.querySelector('#pickerTitle'),
   marketSearch: document.querySelector('#marketSearch'),
   clearSearch: document.querySelector('#clearSearch'),
   searchResults: document.querySelector('#searchResults'),
@@ -145,6 +155,15 @@ const els = {
 let markets = []
 let current = null
 let matchedMarkets = []
+
+function setPickerExpanded(expanded) {
+  els.controlCard.classList.toggle('is-collapsed', !expanded)
+  els.marketToggle.setAttribute('aria-expanded', String(expanded))
+  els.pickerTitle.textContent = expanded
+    ? 'ค้นหาและเลือกตลาด'
+    : (current?.marketName || els.market.selectedOptions[0]?.textContent || 'เลือกตลาด')
+  if (!expanded) closeSearchResults()
+}
 
 function normalizeMarketName(value) {
   return value.normalize('NFC').toLocaleLowerCase('th-TH').replace(/\s+/g, '')
@@ -248,6 +267,7 @@ function renderResult(marketName, analysis) {
   els.result.classList.remove('result-reveal')
   void els.result.offsetWidth
   els.result.classList.add('result-reveal')
+  setPickerExpanded(false)
 }
 
 async function calculate() {
@@ -301,6 +321,9 @@ async function initialize() {
 
 els.market.addEventListener('change', calculate)
 els.refresh.addEventListener('click', calculate)
+els.marketToggle.addEventListener('click', () => {
+  setPickerExpanded(els.marketToggle.getAttribute('aria-expanded') !== 'true')
+})
 els.marketSearch.addEventListener('input', (event) => renderSearchResults(event.target.value))
 els.marketSearch.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && matchedMarkets[0]) {
