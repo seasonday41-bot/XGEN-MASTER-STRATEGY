@@ -57,8 +57,8 @@ export function calculateDoubleAnalysis(top3, bottom2) {
   return {
     pattern,
     message: repeated
-      ? `พบ${pattern}ในผลล่าสุด • เฝ้าระวังเบิ้ล/หาม`
-      : 'ผลล่าสุดไม่พบเบิ้ลหรือหาม • เน้นรูดสลับ',
+      ? `พบ${pattern} • เฝ้าระวังเบิ้ล/หาม`
+      : 'ไม่พบเบิ้ล/หาม • เน้นรูดสลับ',
     doubles: doubleDigits.map((digit) => `${digit}${digit}`),
   }
 }
