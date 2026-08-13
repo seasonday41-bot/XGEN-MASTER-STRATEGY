@@ -8,18 +8,35 @@ const app = document.querySelector('#app')
 
 app.innerHTML = `
   <main class="shell">
+    <div class="ambient-lights" aria-hidden="true">
+      <i></i><i></i><i></i><i></i><i></i>
+    </div>
     <header class="hero">
-      <div class="brand-mark" aria-hidden="true">X</div>
-      <div>
-        <p class="eyebrow">RECENT-4 PAIR ENGINE</p>
-        <h1>Xgen</h1>
+      <div class="hero-rings" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="brand-mark" aria-hidden="true"><b>X</b><small>GEN</small></div>
+      <div class="hero-copy">
+        <p class="eyebrow"><i></i> PREMIUM LUCK ENGINE</p>
+        <h1>Xgen <em>ELITE</em></h1>
         <p class="subtitle">วิน 6 • รูด • เจาะ 2 คัดย้อนหลังจริง</p>
       </div>
-      <span class="live-pill"><i></i> LIVE DATA</span>
+      <div class="hero-seal">
+        <span><i></i> LIVE</span>
+        <strong data-market-total>—</strong>
+        <small>ตลาด</small>
+      </div>
+      <div class="hero-footer">
+        <span>◆ RECENT-4 INTELLIGENCE</span>
+        <span>REAL DATA • SUPABASE</span>
+      </div>
     </header>
 
     <section class="control-card">
-      <label for="marketSearch">ค้นหาตลาด</label>
+      <div class="control-heading">
+        <div class="control-symbol" aria-hidden="true">⌕</div>
+        <div><p>MARKET SELECTOR</p><h2>ค้นหาและเลือกตลาด</h2></div>
+        <span class="market-count"><b data-market-total>—</b> ตลาดพร้อมใช้</span>
+      </div>
+      <label class="sr-only" for="marketSearch">ค้นหาตลาด</label>
       <div class="search-field">
         <span aria-hidden="true">⌕</span>
         <input id="marketSearch" type="search" inputmode="search" autocomplete="off" placeholder="พิมพ์ชื่อตลาด เช่น ลาวพัฒนา" aria-controls="searchResults" aria-expanded="false" disabled>
@@ -38,37 +55,42 @@ app.innerHTML = `
 
     <section id="emptyState" class="empty-card">
       <div class="radar" aria-hidden="true"><span></span></div>
+      <strong>พร้อมเปิดชุดวิเคราะห์</strong>
       <p>เลือกตลาดเพื่อคำนวณจากผลจริง 4 งวดล่าสุด</p>
     </section>
 
     <section id="result" class="result hidden" aria-live="polite">
       <div class="source-head">
-        <div>
-          <p class="section-kicker">แหล่งคำนวณ</p>
-          <h2 id="marketName">—</h2>
+        <div class="market-identity">
+          <span aria-hidden="true">◆</span>
+          <div><p class="section-kicker">สนามวิเคราะห์</p><h2 id="marketName">—</h2></div>
         </div>
-        <div class="source-number"><span id="sourceTop">—</span><b>–</b><span id="sourceBottom">—</span></div>
+        <div class="source-result">
+          <small>ผลล่าสุด</small>
+          <div class="source-number"><span id="sourceTop">—</span><b>–</b><span id="sourceBottom">—</span></div>
+        </div>
       </div>
 
       <div class="result-grid">
         <article class="result-card rud-card">
-          <div class="card-label"><span>⚡</span> รูดหลัก / รอง</div>
+          <div class="card-label"><span>⚡</span><div><b>รูดหลัก / รอง</b><small>RUD POWER</small></div></div>
           <div id="rud" class="rud-numbers"></div>
         </article>
         <article class="result-card win-card">
-          <div class="card-label"><span>✦</span> วิน 6 ตัว</div>
+          <div class="card-label"><span>✦</span><div><b>วิน 6 ตัว</b><small>WIN6 GEMS</small></div></div>
           <div id="win6" class="digit-row"></div>
         </article>
       </div>
 
       <article class="strong-card">
+        <div class="strong-orbits" aria-hidden="true"><i></i><i></i><i></i></div>
         <div class="strong-copy">
-          <p class="section-kicker">LUCKY TOP PICK</p>
+          <p class="section-kicker">◆ MASTER LUCKY PICK</p>
           <h3>ตัวแรงจากเจาะ 2</h3>
           <p>เลขที่มีแรงสนับสนุนซ้ำมากที่สุดใน 5 คู่คัด</p>
         </div>
         <div class="strong-medallion">
-          <span>ตัวแรง</span>
+          <span>MASTER</span>
           <b id="strongDigit">—</b>
           <small id="strongSupport">—</small>
         </div>
@@ -77,8 +99,8 @@ app.innerHTML = `
       <article class="result-card pin-card">
         <div class="pin-header">
           <div>
-            <div class="card-label"><span>◎</span> เจาะ 2 คัดย้อนหลัง 4 งวด</div>
-            <p>คัด 5 คู่คะแนนต่ำจากคู่ทั้งหมดในวิน 6</p>
+            <div class="card-label"><span>◎</span><div><b>เจาะ 2 ชุดคัดพิเศษ</b><small>PIN-2 SELECTION • 5 ชุด</small></div></div>
+            <p>เรียงชุดเด่นจากคะแนนคัดของระบบ</p>
           </div>
           <button id="copy" class="copy-button" type="button" aria-label="คัดลอกรูด วิน 6 เจาะ 2 และตัวแรง">คัดลอกชุด</button>
         </div>
@@ -98,6 +120,7 @@ app.innerHTML = `
 `
 
 const els = {
+  marketTotals: document.querySelectorAll('[data-market-total]'),
   marketSearch: document.querySelector('#marketSearch'),
   clearSearch: document.querySelector('#clearSearch'),
   searchResults: document.querySelector('#searchResults'),
@@ -202,7 +225,7 @@ function renderResult(marketName, analysis) {
   els.sourceTop.textContent = analysis.source.top3
   els.sourceBottom.textContent = analysis.source.bottom2
   els.rud.innerHTML = analysis.rud.map((digit, index) => `
-    <div class="rud-item"><b>${digit}</b><small>${index === 0 ? 'หลัก' : 'รอง'}</small></div>
+    <div class="rud-item ${index === 0 ? 'main' : 'secondary'}"><i aria-hidden="true"></i><b>${digit}</b><small>${index === 0 ? 'รูดหลัก' : 'รูดรอง'}</small></div>
   `).join('')
   els.win6.innerHTML = analysis.win6.map((digit, index) => `
     <span class="digit ${index < 2 ? 'locked' : ''}">${digit}</span>
@@ -211,7 +234,7 @@ function renderResult(marketName, analysis) {
   els.strongSupport.textContent = `อยู่ใน ${analysis.strongDigit.appearances}/5 คู่`
   els.pin2.innerHTML = analysis.pin2.map((item, index) => `
     <div class="pair ${index === 0 ? 'primary' : ''}">
-      <b>${item.pair}</b><small>คะแนน ${item.score}</small>
+      <i>${String(index + 1).padStart(2, '0')}</i><b>${item.pair}</b><small>คะแนน ${item.score}</small>
     </div>
   `).join('')
   els.history.innerHTML = analysis.recent.map((draw, index) => `
@@ -222,6 +245,9 @@ function renderResult(marketName, analysis) {
   `).join('')
   els.empty.classList.add('hidden')
   els.result.classList.remove('hidden')
+  els.result.classList.remove('result-reveal')
+  void els.result.offsetWidth
+  els.result.classList.add('result-reveal')
 }
 
 async function calculate() {
@@ -259,6 +285,7 @@ async function initialize() {
       return option
     })
     els.market.replaceChildren(placeholder, ...options)
+    els.marketTotals.forEach((element) => { element.textContent = markets.length })
     const lao = markets.find((item) => item.market_name === 'ลาวพัฒนา')
     if (lao) els.market.value = lao.market_key
     els.marketSearch.disabled = false
