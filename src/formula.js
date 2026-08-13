@@ -86,6 +86,36 @@ export function selectColdPairs(win6, history, limit = 5) {
     .slice(0, limit)
 }
 
+export function selectStrongDigit(pin2, win6 = []) {
+  if (!Array.isArray(pin2) || pin2.length === 0) {
+    throw new Error('ต้องมีชุดเจาะ 2 ก่อนคัดตัวแรง')
+  }
+
+  const winOrder = new Map(win6.map((digit, index) => [digit, index]))
+  const stats = new Map()
+
+  pin2.forEach((pair, pairIndex) => {
+    pair.digits.forEach((digit) => {
+      const current = stats.get(digit) || {
+        digit,
+        appearances: 0,
+        scoreTotal: 0,
+        firstPairIndex: pairIndex,
+      }
+      current.appearances += 1
+      current.scoreTotal += pair.score
+      stats.set(digit, current)
+    })
+  })
+
+  return [...stats.values()].sort((left, right) =>
+    right.appearances - left.appearances ||
+    left.scoreTotal - right.scoreTotal ||
+    left.firstPairIndex - right.firstPairIndex ||
+    (winOrder.get(left.digit) ?? 99) - (winOrder.get(right.digit) ?? 99),
+  )[0]
+}
+
 export function analyzeHistory(history) {
   if (!Array.isArray(history) || history.length < 4) {
     throw new Error('ต้องมีผลย้อนหลังอย่างน้อย 4 งวด')
@@ -94,5 +124,6 @@ export function analyzeHistory(history) {
   const source = recent[0]
   const { rud, win6 } = calculateWin6(source.top3, source.bottom2)
   const pin2 = selectColdPairs(win6, recent)
-  return { source, recent, rud, win6, pin2 }
+  const strongDigit = selectStrongDigit(pin2, win6)
+  return { source, recent, rud, win6, pin2, strongDigit }
 }

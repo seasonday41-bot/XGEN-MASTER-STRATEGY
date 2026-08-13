@@ -18,7 +18,14 @@ app.innerHTML = `
     </header>
 
     <section class="control-card">
-      <label for="market">เลือกตลาด</label>
+      <label for="marketSearch">ค้นหาตลาด</label>
+      <div class="search-field">
+        <span aria-hidden="true">⌕</span>
+        <input id="marketSearch" type="search" inputmode="search" autocomplete="off" placeholder="พิมพ์ชื่อตลาด เช่น ลาวพัฒนา" aria-controls="searchResults" aria-expanded="false" disabled>
+        <button id="clearSearch" class="clear-search" type="button" aria-label="ล้างคำค้นหา" hidden>×</button>
+      </div>
+      <div id="searchResults" class="search-results hidden" role="listbox" aria-label="ผลการค้นหาตลาด"></div>
+      <div class="select-label"><span>หรือเลือกจากทั้งหมด</span></div>
       <div class="select-row">
         <select id="market" aria-label="เลือกตลาด" disabled>
           <option>กำลังโหลดตลาด...</option>
@@ -53,13 +60,26 @@ app.innerHTML = `
         </article>
       </div>
 
+      <article class="strong-card">
+        <div class="strong-copy">
+          <p class="section-kicker">LUCKY TOP PICK</p>
+          <h3>ตัวแรงจากเจาะ 2</h3>
+          <p>เลขที่มีแรงสนับสนุนซ้ำมากที่สุดใน 5 คู่คัด</p>
+        </div>
+        <div class="strong-medallion">
+          <span>ตัวแรง</span>
+          <b id="strongDigit">—</b>
+          <small id="strongSupport">—</small>
+        </div>
+      </article>
+
       <article class="result-card pin-card">
         <div class="pin-header">
           <div>
             <div class="card-label"><span>◎</span> เจาะ 2 คัดย้อนหลัง 4 งวด</div>
             <p>คัด 5 คู่คะแนนต่ำจากคู่ทั้งหมดในวิน 6</p>
           </div>
-          <button id="copy" class="copy-button" type="button">คัดลอก</button>
+          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกรูด วิน 6 เจาะ 2 และตัวแรง">คัดลอกชุด</button>
         </div>
         <div id="pin2" class="pair-row"></div>
       </article>
@@ -77,6 +97,9 @@ app.innerHTML = `
 `
 
 const els = {
+  marketSearch: document.querySelector('#marketSearch'),
+  clearSearch: document.querySelector('#clearSearch'),
+  searchResults: document.querySelector('#searchResults'),
   market: document.querySelector('#market'),
   refresh: document.querySelector('#refresh'),
   status: document.querySelector('#status'),
@@ -87,6 +110,8 @@ const els = {
   sourceBottom: document.querySelector('#sourceBottom'),
   rud: document.querySelector('#rud'),
   win6: document.querySelector('#win6'),
+  strongDigit: document.querySelector('#strongDigit'),
+  strongSupport: document.querySelector('#strongSupport'),
   pin2: document.querySelector('#pin2'),
   history: document.querySelector('#history'),
   historyToggle: document.querySelector('#historyToggle'),
@@ -95,6 +120,67 @@ const els = {
 
 let markets = []
 let current = null
+let matchedMarkets = []
+
+function normalizeMarketName(value) {
+  return value.normalize('NFC').toLocaleLowerCase('th-TH').replace(/\s+/g, '')
+}
+
+function closeSearchResults() {
+  els.searchResults.classList.add('hidden')
+  els.marketSearch.setAttribute('aria-expanded', 'false')
+}
+
+function renderSearchResults(query) {
+  const normalizedQuery = normalizeMarketName(query.trim())
+  els.clearSearch.hidden = normalizedQuery.length === 0
+
+  if (!normalizedQuery) {
+    matchedMarkets = []
+    closeSearchResults()
+    return
+  }
+
+  matchedMarkets = markets
+    .filter((item) => normalizeMarketName(item.market_name).includes(normalizedQuery))
+    .slice(0, 10)
+
+  els.searchResults.replaceChildren()
+
+  if (!matchedMarkets.length) {
+    const empty = document.createElement('p')
+    empty.className = 'search-empty'
+    empty.textContent = 'ไม่พบตลาดที่ค้นหา'
+    els.searchResults.append(empty)
+  } else {
+    matchedMarkets.forEach((item) => {
+      const button = document.createElement('button')
+      button.type = 'button'
+      button.className = 'search-result'
+      button.dataset.marketKey = item.market_key
+      button.setAttribute('role', 'option')
+
+      const name = document.createElement('span')
+      name.textContent = item.market_name
+      const action = document.createElement('small')
+      action.textContent = 'เลือก ›'
+      button.append(name, action)
+      els.searchResults.append(button)
+    })
+  }
+
+  els.searchResults.classList.remove('hidden')
+  els.marketSearch.setAttribute('aria-expanded', 'true')
+}
+
+function selectSearchedMarket(marketKey) {
+  if (!markets.some((item) => item.market_key === marketKey)) return
+  els.market.value = marketKey
+  els.marketSearch.value = ''
+  els.clearSearch.hidden = true
+  closeSearchResults()
+  calculate()
+}
 
 function setStatus(message, type = 'ready') {
   els.status.className = `status ${type}`
@@ -120,6 +206,8 @@ function renderResult(marketName, analysis) {
   els.win6.innerHTML = analysis.win6.map((digit, index) => `
     <span class="digit ${index < 2 ? 'locked' : ''}">${digit}</span>
   `).join('')
+  els.strongDigit.textContent = analysis.strongDigit.digit
+  els.strongSupport.textContent = `อยู่ใน ${analysis.strongDigit.appearances}/5 คู่`
   els.pin2.innerHTML = analysis.pin2.map((item, index) => `
     <div class="pair ${index === 0 ? 'primary' : ''}">
       <b>${item.pair}</b><small>คะแนน ${item.score}</small>
@@ -172,6 +260,7 @@ async function initialize() {
     els.market.replaceChildren(placeholder, ...options)
     const lao = markets.find((item) => item.market_name === 'ลาวพัฒนา')
     if (lao) els.market.value = lao.market_key
+    els.marketSearch.disabled = false
     els.market.disabled = false
     setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด`, 'ready')
     if (lao) await calculate()
@@ -184,6 +273,26 @@ async function initialize() {
 
 els.market.addEventListener('change', calculate)
 els.refresh.addEventListener('click', calculate)
+els.marketSearch.addEventListener('input', (event) => renderSearchResults(event.target.value))
+els.marketSearch.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && matchedMarkets[0]) {
+    event.preventDefault()
+    selectSearchedMarket(matchedMarkets[0].market_key)
+  }
+  if (event.key === 'Escape') closeSearchResults()
+})
+els.searchResults.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-market-key]')
+  if (button) selectSearchedMarket(button.dataset.marketKey)
+})
+els.clearSearch.addEventListener('click', () => {
+  els.marketSearch.value = ''
+  els.marketSearch.focus()
+  renderSearchResults('')
+})
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.control-card')) closeSearchResults()
+})
 els.historyToggle.addEventListener('click', () => {
   const opened = els.historyToggle.getAttribute('aria-expanded') === 'true'
   els.historyToggle.setAttribute('aria-expanded', String(!opened))
@@ -193,17 +302,19 @@ els.historyToggle.addEventListener('click', () => {
 els.copy.addEventListener('click', async () => {
   if (!current) return
   const text = [
-    `Xgen • ${current.marketName}`,
+    `🍀 Xgen • ${current.marketName}`,
     `ผลตั้งต้น ${current.source.top3}-${current.source.bottom2}`,
-    `รูด ${current.rud.join(' • ')}`,
-    `วิน 6: ${current.win6.join('')}`,
-    `เจาะ 2: ${current.pin2.map((item) => item.pair).join(' • ')}`,
-    'คัดจากผลย้อนหลัง 4 งวด • กลับได้',
+    `🔥 ตัวแรง: ${current.strongDigit.digit}`,
+    `⚡ รูด: ${current.rud.join(' • ')}`,
+    `✨ WIN6: ${current.win6.join('')}`,
+    `🎯 เจาะ 2: ${current.pin2.map((item) => item.pair).join(' • ')}`,
+    '↔️ คัดจากผลย้อนหลัง 4 งวด • กลับได้',
   ].join('\n')
   try {
     await navigator.clipboard.writeText(text)
     els.copy.textContent = 'คัดลอกแล้ว ✓'
-    window.setTimeout(() => { els.copy.textContent = 'คัดลอก' }, 1600)
+    navigator.vibrate?.(25)
+    window.setTimeout(() => { els.copy.textContent = 'คัดลอกชุด' }, 1600)
   } catch {
     window.prompt('คัดลอกข้อความนี้', text)
   }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeHistory, calculateWin6, selectColdPairs } from './formula.js'
+import { analyzeHistory, calculateWin6, selectColdPairs, selectStrongDigit } from './formula.js'
 
 describe('Xgen formula', () => {
   it('คำนวณ 240-56 เป็นรูด 6-7 และ WIN6 675280', () => {
@@ -20,6 +20,7 @@ describe('Xgen formula', () => {
     expect(result.win6.join('')).toBe('562017')
     expect(result.pin2.map((item) => item.pair)).toEqual(['25', '15', '12', '56', '05'])
     expect(result.pin2.map((item) => item.score)).toEqual([0, 1, 1, 4, 4])
+    expect(result.strongDigit).toMatchObject({ digit: 5, appearances: 4 })
   })
 
   it('ไม่สร้างเลขเบิ้ลใน 15 คู่ของ WIN6', () => {
@@ -28,5 +29,19 @@ describe('Xgen formula', () => {
     expect(pairs).toHaveLength(15)
     expect(pairs.every((item) => item.pair[0] !== item.pair[1])).toBe(true)
   })
-})
 
+  it('คัดตัวแรงจากเลขที่ซ้ำในเจาะ 2 มากที่สุดและใช้คะแนนตัดสินเมื่อเสมอ', () => {
+    const pin2 = [
+      { digits: [1, 2], pair: '12', score: 1 },
+      { digits: [1, 3], pair: '13', score: 2 },
+      { digits: [2, 4], pair: '24', score: 8 },
+      { digits: [3, 4], pair: '34', score: 8 },
+    ]
+
+    expect(selectStrongDigit(pin2, [1, 2, 3, 4])).toMatchObject({
+      digit: 1,
+      appearances: 2,
+      scoreTotal: 3,
+    })
+  })
+})
