@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   analyzeHistory,
   calculateDoubleAnalysis,
+  calculateDoubleProbability,
   calculateWin6,
   resolveUniqueRud,
   selectColdPairs,
@@ -28,6 +29,33 @@ describe('Xgen formula', () => {
     expect(result.pin2.map((item) => item.pair)).toEqual(['25', '15', '12', '56', '05'])
     expect(result.pin2.map((item) => item.score)).toEqual([0, 1, 1, 4, 4])
     expect(result.strongDigit).toMatchObject({ digit: 5, appearances: 4 })
+  })
+
+  it('ใช้ประวัติเพิ่มเฉพาะเปอร์เซ็นต์เบิ้ลโดยไม่เปลี่ยนรูด WIN6 เจาะ 2 และตัวแรง', () => {
+    const recent = [
+      { top3: '718', bottom2: '97' },
+      { top3: '670', bottom2: '96' },
+      { top3: '030', bottom2: '30' },
+      { top3: '677', bottom2: '76' },
+    ]
+    const shortResult = analyzeHistory(recent)
+    const longResult = analyzeHistory([
+      ...recent,
+      ...Array.from({ length: 16 }, () => ({ top3: '123', bottom2: '45' })),
+    ])
+
+    expect({
+      rud: longResult.rud,
+      win6: longResult.win6,
+      pin2: longResult.pin2,
+      strongDigit: longResult.strongDigit,
+    }).toEqual({
+      rud: shortResult.rud,
+      win6: shortResult.win6,
+      pin2: shortResult.pin2,
+      strongDigit: shortResult.strongDigit,
+    })
+    expect(longResult.doubleAnalysis.percentage).not.toBeNull()
   })
 
   it('ไม่สร้างเลขเบิ้ลใน 15 คู่ของ WIN6', () => {
@@ -67,7 +95,6 @@ describe('Xgen formula', () => {
   it('คำนวณเลขเบิ้ล 681-16 เป็น 77 และ 88 ตามสูตร HTML', () => {
     expect(calculateDoubleAnalysis('681', '16')).toEqual({
       pattern: 'ปกติ',
-      message: 'ไม่พบเบิ้ล/หาม • เน้นรูดสลับ',
       doubles: ['77', '88'],
     })
   })
@@ -75,7 +102,6 @@ describe('Xgen formula', () => {
   it('วิเคราะห์ 088 เป็นเบิ้ลหลังและไม่แสดง 88 ซ้ำ', () => {
     expect(calculateDoubleAnalysis('088', '07')).toEqual({
       pattern: 'เบิ้ลหลัง',
-      message: 'พบเบิ้ลหลัง • เฝ้าระวังเบิ้ล/หาม',
       doubles: ['88'],
     })
   })
@@ -84,5 +110,49 @@ describe('Xgen formula', () => {
     expect(calculateDoubleAnalysis('881', '00').pattern).toBe('เบิ้ลหน้า')
     expect(calculateDoubleAnalysis('818', '00').pattern).toBe('หาม')
     expect(calculateDoubleAnalysis('888', '00').pattern).toBe('ตอง')
+  })
+
+  it('ให้ 42% และเน้นเบิ้ลเมื่อย้อนหลังเข้า 8 จาก 19 จุด', () => {
+    const history = [
+      ...Array.from({ length: 8 }, () => ({ top3: '112', bottom2: '00' })),
+      ...Array.from({ length: 11 }, () => ({ top3: '123', bottom2: '00' })),
+      { top3: '456', bottom2: '00' },
+    ]
+
+    expect(calculateDoubleProbability(history)).toEqual({
+      percentage: 42,
+      hits: 8,
+      samples: 19,
+      advice: 'เน้นเบิ้ล',
+      message: 'โอกาสเบิ้ล 42% • เน้นเบิ้ล',
+    })
+  })
+
+  it('แยกระวังเบิ้ลและเน้นรูดสลับตามเปอร์เซ็นต์ย้อนหลัง', () => {
+    const makeHistory = (hits) => [
+      ...Array.from({ length: hits }, () => ({ top3: '112', bottom2: '00' })),
+      ...Array.from({ length: 19 - hits }, () => ({ top3: '123', bottom2: '00' })),
+      { top3: '456', bottom2: '00' },
+    ]
+
+    expect(calculateDoubleProbability(makeHistory(6))).toMatchObject({
+      percentage: 32,
+      advice: 'ระวังเบิ้ล',
+    })
+    expect(calculateDoubleProbability(makeHistory(5))).toMatchObject({
+      percentage: 26,
+      advice: 'เน้นรูดสลับ',
+    })
+  })
+
+  it('ไม่แสดงเปอร์เซ็นต์เมื่อมีจุด Walk-forward ต่ำกว่า 15 จุด', () => {
+    const history = Array.from({ length: 15 }, () => ({ top3: '123', bottom2: '00' }))
+
+    expect(calculateDoubleProbability(history)).toMatchObject({
+      percentage: null,
+      samples: 14,
+      advice: 'ข้อมูลยังไม่พอ',
+      message: 'โอกาสเบิ้ล — • ข้อมูลยังไม่พอ',
+    })
   })
 })
