@@ -67,7 +67,7 @@ describe('Xgen formula', () => {
   it('คำนวณเลขเบิ้ล 681-16 เป็น 77 และ 88 ตามสูตร HTML', () => {
     expect(calculateDoubleAnalysis('681', '16')).toEqual({
       pattern: 'ปกติ',
-      message: 'ผลล่าสุดไม่พบเบิ้ลหรือหาม • เน้นรูดสลับ',
+      message: 'ไม่พบเบิ้ล/หาม • เน้นรูดสลับ',
       doubles: ['77', '88'],
     })
   })
@@ -75,7 +75,7 @@ describe('Xgen formula', () => {
   it('วิเคราะห์ 088 เป็นเบิ้ลหลังและไม่แสดง 88 ซ้ำ', () => {
     expect(calculateDoubleAnalysis('088', '07')).toEqual({
       pattern: 'เบิ้ลหลัง',
-      message: 'พบเบิ้ลหลังในผลล่าสุด • เฝ้าระวังเบิ้ล/หาม',
+      message: 'พบเบิ้ลหลัง • เฝ้าระวังเบิ้ล/หาม',
       doubles: ['88'],
     })
   })
