@@ -303,9 +303,10 @@ select:focus { border-color: var(--jade-500); box-shadow: 0 0 0 3px rgba(42, 152
 
 .result-reveal .source-head { animation: revealUp .56s cubic-bezier(.2, .78, .24, 1) both; }
 .result-reveal .result-grid { animation: revealUp .56s .08s cubic-bezier(.2, .78, .24, 1) both; }
-.result-reveal .strong-card { animation: revealUp .56s .16s cubic-bezier(.2, .78, .24, 1) both; }
-.result-reveal .pin-card { animation: revealUp .56s .24s cubic-bezier(.2, .78, .24, 1) both; }
-.result-reveal .history-card { animation: revealUp .56s .32s cubic-bezier(.2, .78, .24, 1) both; }
+.result-reveal .double-card { animation: revealUp .56s .16s cubic-bezier(.2, .78, .24, 1) both; }
+.result-reveal .strong-card { animation: revealUp .56s .24s cubic-bezier(.2, .78, .24, 1) both; }
+.result-reveal .pin-card { animation: revealUp .56s .32s cubic-bezier(.2, .78, .24, 1) both; }
+.result-reveal .history-card { animation: revealUp .56s .40s cubic-bezier(.2, .78, .24, 1) both; }
 
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; padding: 12px 13px; border: 1px solid rgba(216, 163, 52, .25); border-radius: 18px; background: linear-gradient(135deg, rgba(255, 252, 242, .88), rgba(255, 244, 216, .76)); box-shadow: 0 9px 20px rgba(113, 66, 61, .10), inset 0 1px rgba(255, 255, 255, .82); }
 .market-identity { min-width: 0; display: flex; align-items: center; gap: 9px; }
@@ -359,6 +360,24 @@ select:focus { border-color: var(--jade-500); box-shadow: 0 0 0 3px rgba(42, 152
 .digit:nth-child(6)::after { animation-delay: -3.5s; }
 .win-card { border-color: rgba(42, 152, 108, .34); box-shadow: 0 5px 0 rgba(42, 152, 108, .07), 0 13px 24px rgba(70, 91, 67, .12), 0 0 14px rgba(42, 152, 108, .07), inset 0 1px rgba(255, 255, 255, .88); }
 .digit.locked { border-color: #d9b54f; color: #fff9e7; background: linear-gradient(145deg, var(--jade-500), var(--jade-900)); box-shadow: 0 6px 11px rgba(7, 91, 65, .19), 0 0 9px rgba(42, 152, 108, .12); }
+
+.double-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 14px 16px;
+  border-color: rgba(181, 36, 61, .26);
+  background: linear-gradient(145deg, rgba(255, 253, 246, .98), rgba(252, 235, 224, .96));
+  box-shadow: 0 6px 0 rgba(181, 36, 61, .05), 0 13px 24px rgba(109, 48, 58, .11), inset 0 1px rgba(255, 255, 255, .9);
+}
+.double-analysis > strong { display: block; margin-top: 7px; color: var(--ruby-900); font-size: 15px; }
+.double-analysis > p { margin: 2px 0 0; color: var(--wine-muted); font-size: 9px; line-height: 1.45; }
+.double-picks { min-width: 116px; text-align: center; }
+.double-picks > small { display: block; margin-bottom: 5px; color: var(--gold-700); font-size: 7px; font-weight: 850; letter-spacing: .06em; }
+.double-numbers { display: flex; justify-content: center; gap: 7px; }
+.double-numbers b { min-width: 48px; min-height: 42px; display: grid; place-items: center; border: 1px solid var(--gold-500); border-radius: 13px; color: #fff8e5; background: linear-gradient(145deg, var(--ruby-700), var(--ruby-900)); font-size: 20px; letter-spacing: .04em; box-shadow: 0 7px 12px rgba(120, 21, 42, .18), inset 0 1px rgba(255, 244, 205, .34); }
 
 .strong-card {
   position: relative;
@@ -532,7 +551,7 @@ select:focus { border-color: var(--jade-500); box-shadow: 0 0 0 3px rgba(42, 152
   .radar span, .rud-item > i, .digit::after, .strong-card::before,
   .strong-card::after, .strong-orbits i, .strong-medallion, .copy-button::after,
   .result-reveal .source-head, .result-reveal .result-grid,
-  .result-reveal .strong-card, .result-reveal .pin-card,
+  .result-reveal .double-card, .result-reveal .strong-card, .result-reveal .pin-card,
   .result-reveal .history-card { animation: none; }
 }
 
@@ -560,6 +579,9 @@ select:focus { border-color: var(--jade-500); box-shadow: 0 0 0 3px rgba(42, 152
   .rud-numbers { justify-content: center; }
   .digit-row { grid-template-columns: repeat(6, 1fr); }
   .digit { min-height: 37px; }
+  .double-card { grid-template-columns: 1fr auto; gap: 9px; padding: 13px; }
+  .double-picks { min-width: 98px; }
+  .double-numbers b { min-width: 42px; min-height: 39px; font-size: 18px; }
   .strong-card { min-height: 116px; padding: 16px; }
   .strong-copy p:last-child { max-width: 154px; }
   .strong-medallion { flex-basis: 76px; height: 76px; }

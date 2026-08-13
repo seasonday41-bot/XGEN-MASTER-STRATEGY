@@ -33,6 +33,36 @@ export function calculateWin6(top3, bottom2) {
   }
 }
 
+export function calculateDoubleAnalysis(top3, bottom2) {
+  if (!/^\d{3}$/.test(top3) || !/^\d{2}$/.test(bottom2)) {
+    throw new Error('ผลรางวัลไม่ครบ 3 ตัวบน และ 2 ตัวล่าง')
+  }
+
+  const [n1, n2, n3] = [...top3].map(Number)
+  const [b1, b2] = [...bottom2].map(Number)
+  let run1 = (n3 + b2) % 10
+  let run2 = (n1 + b1) % 10
+
+  if (run1 === run2) run2 = (run2 + 1) % 10
+
+  let pattern = 'ปกติ'
+  if (n1 === n2 && n2 === n3) pattern = 'ตอง'
+  else if (n1 === n2) pattern = 'เบิ้ลหน้า'
+  else if (n2 === n3) pattern = 'เบิ้ลหลัง'
+  else if (n1 === n3) pattern = 'หาม'
+
+  const repeated = pattern !== 'ปกติ'
+  const doubleDigits = uniqueFirst(repeated ? [n2, n3] : [run1, run2], 2)
+
+  return {
+    pattern,
+    message: repeated
+      ? `พบ${pattern}ในผลล่าสุด • เฝ้าระวังเบิ้ล/หาม`
+      : 'ผลล่าสุดไม่พบเบิ้ลหรือหาม • เน้นรูดสลับ',
+    doubles: doubleDigits.map((digit) => `${digit}${digit}`),
+  }
+}
+
 export function allPairs(digits) {
   const pairs = []
   for (let i = 0; i < digits.length; i += 1) {
@@ -141,5 +171,6 @@ export function analyzeHistory(history) {
   const pin2 = selectColdPairs(win6, recent)
   const strongDigit = selectStrongDigit(pin2, win6)
   const rud = resolveUniqueRud(calculatedRud, strongDigit, win6)
-  return { source, recent, rud, win6, pin2, strongDigit }
+  const doubleAnalysis = calculateDoubleAnalysis(source.top3, source.bottom2)
+  return { source, recent, rud, win6, pin2, strongDigit, doubleAnalysis }
 }

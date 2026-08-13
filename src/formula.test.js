@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   analyzeHistory,
+  calculateDoubleAnalysis,
   calculateWin6,
   resolveUniqueRud,
   selectColdPairs,
@@ -61,5 +62,27 @@ describe('Xgen formula', () => {
 
   it('คงรูดเดิมเมื่อรูดหลักและรูดรองไม่ซ้ำกัน', () => {
     expect(resolveUniqueRud([6, 7], { digit: 5 }, [6, 7, 5, 2, 8, 0])).toEqual([6, 7])
+  })
+
+  it('คำนวณเลขเบิ้ล 681-16 เป็น 77 และ 88 ตามสูตร HTML', () => {
+    expect(calculateDoubleAnalysis('681', '16')).toEqual({
+      pattern: 'ปกติ',
+      message: 'ผลล่าสุดไม่พบเบิ้ลหรือหาม • เน้นรูดสลับ',
+      doubles: ['77', '88'],
+    })
+  })
+
+  it('วิเคราะห์ 088 เป็นเบิ้ลหลังและไม่แสดง 88 ซ้ำ', () => {
+    expect(calculateDoubleAnalysis('088', '07')).toEqual({
+      pattern: 'เบิ้ลหลัง',
+      message: 'พบเบิ้ลหลังในผลล่าสุด • เฝ้าระวังเบิ้ล/หาม',
+      doubles: ['88'],
+    })
+  })
+
+  it('แยกเบิ้ลหน้า หาม และตองได้', () => {
+    expect(calculateDoubleAnalysis('881', '00').pattern).toBe('เบิ้ลหน้า')
+    expect(calculateDoubleAnalysis('818', '00').pattern).toBe('หาม')
+    expect(calculateDoubleAnalysis('888', '00').pattern).toBe('ตอง')
   })
 })

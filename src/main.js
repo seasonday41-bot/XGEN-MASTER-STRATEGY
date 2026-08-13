@@ -89,6 +89,18 @@ app.innerHTML = `
         </article>
       </div>
 
+      <article class="result-card double-card">
+        <div class="double-analysis">
+          <div class="card-label"><span>↻</span><div><b>วิเคราะห์เบิ้ล / หาม</b><small>DOUBLE PATTERN</small></div></div>
+          <strong id="doublePattern">—</strong>
+          <p id="doubleMessage">—</p>
+        </div>
+        <div class="double-picks">
+          <small>เลขเบิ้ลจากสูตร</small>
+          <div id="doubleNumbers" class="double-numbers"></div>
+        </div>
+      </article>
+
       <article class="strong-card">
         <div class="strong-orbits" aria-hidden="true"><i></i><i></i><i></i></div>
         <div class="strong-copy">
@@ -109,7 +121,7 @@ app.innerHTML = `
             <div class="card-label"><span>◎</span><div><b>เจาะ 2 ชุดคัดพิเศษ</b><small>PIN-2 SELECTION • 5 ชุด</small></div></div>
             <p>เรียงชุดเด่นจากคะแนนคัดของระบบ</p>
           </div>
-          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกรูด วิน 6 เจาะ 2 และตัวแรง">คัดลอกชุด</button>
+          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกรูด วิน 6 เลขเบิ้ล เจาะ 2 และตัวแรง">คัดลอกชุด</button>
         </div>
         <div id="pin2" class="pair-row"></div>
       </article>
@@ -144,6 +156,9 @@ const els = {
   sourceBottom: document.querySelector('#sourceBottom'),
   rud: document.querySelector('#rud'),
   win6: document.querySelector('#win6'),
+  doublePattern: document.querySelector('#doublePattern'),
+  doubleMessage: document.querySelector('#doubleMessage'),
+  doubleNumbers: document.querySelector('#doubleNumbers'),
   strongDigit: document.querySelector('#strongDigit'),
   strongSupport: document.querySelector('#strongSupport'),
   pin2: document.querySelector('#pin2'),
@@ -249,6 +264,11 @@ function renderResult(marketName, analysis) {
   els.win6.innerHTML = analysis.win6.map((digit) => `
     <span class="digit ${analysis.rud.includes(digit) ? 'locked' : ''}">${digit}</span>
   `).join('')
+  els.doublePattern.textContent = analysis.doubleAnalysis.pattern
+  els.doubleMessage.textContent = analysis.doubleAnalysis.message
+  els.doubleNumbers.innerHTML = analysis.doubleAnalysis.doubles
+    .map((number) => `<b>${number}</b>`)
+    .join('')
   els.strongDigit.textContent = analysis.strongDigit.digit
   els.strongSupport.textContent = `อยู่ใน ${analysis.strongDigit.appearances}/5 คู่`
   els.pin2.innerHTML = analysis.pin2.map((item, index) => `
