@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { cleanAndValidateHistory } from './data-health.js'
 
 // Publishable keys are intentionally safe for browser clients. Access is still
 // constrained by Postgres grants/RLS and the read-only Xgen RPC functions.
@@ -18,6 +19,13 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   },
 })
 
+const dataHealthCache = new Map()
+const healthKey = (marketKey, limit) => `${marketKey}:${limit}`
+
+export function getLastDataHealth(marketKey, limit = 30) {
+  return dataHealthCache.get(healthKey(marketKey, limit)) || null
+}
+
 export async function loadMarkets() {
   const { data, error } = await supabase.rpc('xgen_list_markets')
 
@@ -32,5 +40,17 @@ export async function loadRecentResults(marketKey, limit = 4) {
   })
 
   if (error) throw error
-  return data
+
+  const guarded = cleanAndValidateHistory(data, limit)
+  dataHealthCache.set(healthKey(marketKey, limit), guarded.health)
+
+  if (!guarded.canAnalyze) {
+    const problem = guarded.health.issues.find((item) => item.severity === 'critical')
+    const guardError = new Error(problem?.message || 'Data Guard พบข้อมูลผิดปกติและหยุดการคำนวณ')
+    guardError.name = 'XgenDataGuardError'
+    guardError.health = guarded.health
+    throw guardError
+  }
+
+  return guarded.cleaned
 }
