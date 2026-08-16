@@ -54,3 +54,33 @@ export async function loadRecentResults(marketKey, limit = 4) {
 
   return guarded.cleaned
 }
+
+export async function loadAllRecentResults(limit = 30) {
+  const { data, error } = await supabase.rpc('xgen_recent_results_all', {
+    p_limit: limit,
+  })
+
+  if (error) throw error
+
+  const grouped = new Map()
+  ;(data || []).forEach((row) => {
+    const current = grouped.get(row.market_key) || {
+      marketKey: row.market_key,
+      marketName: row.market_name,
+      history: [],
+    }
+    current.history.push({ draw_date: row.draw_date, top3: row.top3, bottom2: row.bottom2 })
+    grouped.set(row.market_key, current)
+  })
+
+  return [...grouped.values()].map((item) => {
+    const guarded = cleanAndValidateHistory(item.history, limit)
+    dataHealthCache.set(healthKey(item.marketKey, limit), guarded.health)
+    return {
+      ...item,
+      history: guarded.cleaned,
+      canAnalyze: guarded.canAnalyze,
+      health: guarded.health,
+    }
+  })
+}
