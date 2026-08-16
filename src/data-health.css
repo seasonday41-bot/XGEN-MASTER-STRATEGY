@@ -1,0 +1,43 @@
+.data-health-card {
+  margin: 14px 0;
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(24, 111, 80, .14);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 218, 118, .22), transparent 34%),
+    linear-gradient(145deg, rgba(255,255,248,.98), rgba(235,249,241,.96));
+  box-shadow: 0 12px 30px rgba(42, 101, 76, .1), inset 0 1px rgba(255,255,255,.85);
+  color: #183f32;
+}
+.data-health-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.data-health-head p { margin:0; font-size:9px; font-weight:900; letter-spacing:.12em; color:#98701f; }
+.data-health-head h3 { margin:2px 0 0; font-size:18px; color:#174c3b; }
+.data-health-score {
+  width:58px; height:58px; border-radius:50%; display:grid; place-items:center;
+  background:radial-gradient(circle,#f8fff9 55%,transparent 57%),conic-gradient(#2fa875 100%,rgba(44,132,98,.1) 0);
+  font-size:20px; font-weight:900; color:#17694e;
+}
+.data-health-status { display:flex; justify-content:space-between; gap:8px; align-items:baseline; margin-top:10px; }
+.data-health-status b { font-size:12px; color:#21654d; }
+.data-health-status span { font-size:9px; color:#839b91; }
+.data-health-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:10px; }
+.data-health-grid div { padding:8px 5px; border-radius:11px; text-align:center; background:rgba(26,117,84,.055); }
+.data-health-grid span,.data-health-grid b { display:block; }
+.data-health-grid span { font-size:7px; letter-spacing:.08em; color:#93a69e; }
+.data-health-grid b { margin-top:2px; font-size:12px; color:#315f4e; }
+.data-health-messages { display:grid; gap:5px; margin-top:9px; }
+.data-health-messages div { display:grid; grid-template-columns:7px 1fr; gap:7px; align-items:start; font-size:8.5px; line-height:1.4; color:#647d73; }
+.data-health-messages i { width:6px; height:6px; margin-top:3px; border-radius:50%; background:#35a376; }
+.data-health-messages .warning i,.data-health-messages .repair i,.data-health-messages .info i { background:#b28b36; }
+.data-health-messages .critical i { background:#b14b3d; box-shadow:0 0 0 4px rgba(177,75,61,.08); }
+.data-health-foot { margin:9px 0 0; text-align:center; font-size:7.5px; line-height:1.4; color:#8c9d96; }
+.data-health-card[data-status="WATCH"] { border-color:rgba(182,139,45,.22); }
+.data-health-card[data-status="WATCH"] .data-health-score { color:#8f6b1f; }
+.data-health-card[data-status="BLOCKED"] { border-color:rgba(177,75,61,.25); background:linear-gradient(145deg,rgba(255,248,244,.98),rgba(247,238,230,.96)); }
+.data-health-card[data-status="BLOCKED"] .data-health-score,.data-health-card[data-status="BLOCKED"] .data-health-status b { color:#a44537; }
+.data-health-loading { opacity:.7; }
+@media (max-width:440px) {
+  .data-health-card { padding:12px; }
+  .data-health-grid { gap:4px; }
+  .data-health-grid div { padding:7px 3px; }
+}
