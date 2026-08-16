@@ -1,7 +1,9 @@
 import './market-intelligence.css'
+import './market-radar-picks.css'
 import { loadRecentResults } from './supabase.js'
 import { analyzeMarketIntelligence } from './market-intelligence.js'
 import { buildNextDrawSignals } from './market-signal-interpreter.js'
+import { buildRadarPicks } from './market-radar-picks.js'
 
 const stateLabels = {
   STABLE: 'STABLE • ทรงตัว',
@@ -64,6 +66,36 @@ function ensureCard() {
       </div>
     </div>
 
+    <section class="intel-radar-picks">
+      <div class="intel-picks-head">
+        <b>🎯 RADAR PICKS • เลขที่ Radar ชี้</b>
+        <small>CANDIDATE SCORE • ไม่ใช่เปอร์เซ็นต์</small>
+      </div>
+      <div class="intel-picks-main">
+        <div class="intel-pick-master">
+          <span>RADAR เด่น</span>
+          <b id="intelRadarStrong">—</b>
+          <small id="intelRadarStrongScore">—</small>
+        </div>
+        <div class="intel-picks-lanes">
+          <div class="intel-pick-lane">
+            <span>🔥 แกน Radar 3 ตัว</span>
+            <div id="intelRadarCore" class="intel-pick-digits"></div>
+          </div>
+          <div class="intel-pick-lane">
+            <span>🛡️ เฝ้าระวัง / Defense</span>
+            <div id="intelRadarWatch" class="intel-pick-digits"></div>
+          </div>
+        </div>
+      </div>
+      <div id="intelRadarReasons" class="intel-pick-reasons"></div>
+      <div class="intel-pair-picks">
+        <span>🎯 คู่สัญญาณ Radar • กลับได้</span>
+        <div id="intelRadarPairs" class="intel-pair-row"></div>
+      </div>
+      <p class="intel-picks-foot">Radar Picks รวม Momentum + ความอิ่มตัว + Repeat + Sibling + Market State เพื่อชี้เลข ไม่ได้แก้ WIN6 เดิมในโหมด SHADOW</p>
+    </section>
+
     <section class="intel-next-signals">
       <div class="intel-panel-head intel-alert-head">
         <b>🚨 สัญญาณงวดถัดไป</b>
@@ -85,14 +117,14 @@ function ensureCard() {
 
       <section class="intel-panel">
         <div class="intel-panel-head"><b>เลขกำลังกระจุก</b><small>DIGIT CONCENTRATION</small></div>
-        <div class="intel-digits" id="intelDigits"></div>
+        <div id="intelDigits" class="intel-digits"></div>
         <p class="intel-caption">ดูสัดส่วนฝั่งล่าง 5 งวดเทียบ Momentum ฐาน 20 งวด</p>
       </section>
     </div>
 
     <section class="intel-patterns">
       <div class="intel-panel-head"><b>แรง Pattern</b><small>PRESSURE INDEX • ไม่ใช่ความน่าจะเป็น</small></div>
-      <div class="intel-pattern-grid" id="intelPatterns"></div>
+      <div id="intelPatterns" class="intel-pattern-grid"></div>
     </section>
 
     <section class="intel-experts">
@@ -105,11 +137,44 @@ function ensureCard() {
       <ul id="intelReasons"></ul>
     </section>
 
-    <p class="intel-foot">โหมดทดลอง: Radar ใช้เพื่อจับ Market Shift และ Pattern State เท่านั้น ผล WIN6 / รูด / เจาะเดิมยังคงสูตรเดิม</p>
+    <p class="intel-foot">โหมดทดลอง: Radar ใช้เพื่อจับ Market Shift / Pattern / Candidate เท่านั้น ผล WIN6 / รูด / เจาะเดิมยังคงสูตรเดิม</p>
   `
 
   anchor.before(card)
   return card
+}
+
+function renderRadarPicks(analysis, history) {
+  const picks = buildRadarPicks(analysis, history)
+  if (!picks) return
+
+  const strong = picks.core[0]
+  document.querySelector('#intelRadarStrong').textContent = strong?.digit ?? '—'
+  document.querySelector('#intelRadarStrongScore').textContent = strong ? `แรง ${strong.score}` : '—'
+
+  document.querySelector('#intelRadarCore').innerHTML = picks.core.map((item) => `
+    <div class="intel-pick-digit core">
+      <b>${item.digit}</b>
+      <small>${item.score}</small>
+    </div>
+  `).join('')
+
+  document.querySelector('#intelRadarWatch').innerHTML = picks.watch.map((item) => `
+    <div class="intel-pick-digit watch">
+      <b>${item.digit}</b>
+      <small>${item.score}</small>
+    </div>
+  `).join('')
+
+  const reasons = strong?.reasons?.length ? strong.reasons : ['ยังไม่มีเหตุผลเด่นพอ']
+  document.querySelector('#intelRadarReasons').innerHTML = `<b>${picks.summary}</b><br>${reasons.join(' • ')}`
+
+  document.querySelector('#intelRadarPairs').innerHTML = picks.pairPicks.map((item) => `
+    <div class="intel-radar-pair">
+      <b>${item.pair}</b>
+      <small>${item.score}</small>
+    </div>
+  `).join('')
 }
 
 function renderSignals(analysis) {
@@ -132,7 +197,7 @@ function renderSignals(analysis) {
   `).join('')
 }
 
-function render(analysis) {
+function render(analysis, history) {
   const card = ensureCard()
   if (!card) return
 
@@ -146,6 +211,7 @@ function render(analysis) {
   document.querySelector('#intelShiftGauge').style.setProperty('--intel-value', analysis.shiftScore)
   document.querySelector('#intelCompressionGauge').style.setProperty('--intel-value', analysis.compressionScore)
 
+  renderRadarPicks(analysis, history)
   renderSignals(analysis)
 
   const high = analysis.saturation.high
@@ -210,7 +276,8 @@ async function refreshIntelligence() {
   try {
     const history = await loadRecentResults(market.value, 30)
     if (token !== runToken) return
-    render(analyzeMarketIntelligence(history))
+    const analysis = analyzeMarketIntelligence(history)
+    render(analysis, history)
   } catch (error) {
     console.error('Xgen Market Intelligence:', error)
     const card = ensureCard()
