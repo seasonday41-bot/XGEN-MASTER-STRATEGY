@@ -1,6 +1,7 @@
 import './market-intelligence.css'
 import { loadRecentResults } from './supabase.js'
 import { analyzeMarketIntelligence } from './market-intelligence.js'
+import { buildNextDrawSignals } from './market-signal-interpreter.js'
 
 const stateLabels = {
   STABLE: 'STABLE • ทรงตัว',
@@ -63,6 +64,15 @@ function ensureCard() {
       </div>
     </div>
 
+    <section class="intel-next-signals">
+      <div class="intel-panel-head intel-alert-head">
+        <b>🚨 สัญญาณงวดถัดไป</b>
+        <small>NEXT DRAW SIGNALS • SCORE ไม่ใช่เปอร์เซ็นต์</small>
+      </div>
+      <div id="intelNextSignals" class="intel-signal-list"></div>
+      <p class="intel-signal-note">Signal แปล Pattern ปัจจุบันเป็นคำเตือนล่วงหน้า • Transition ย้อนหลังใช้เป็นหลักฐานประกอบเท่านั้น</p>
+    </section>
+
     <div class="intel-grid">
       <section class="intel-panel">
         <div class="intel-panel-head"><b>ความอิ่มตัว</b><small>SATURATION</small></div>
@@ -102,6 +112,26 @@ function ensureCard() {
   return card
 }
 
+function renderSignals(analysis) {
+  const signals = buildNextDrawSignals(analysis)
+  const target = document.querySelector('#intelNextSignals')
+  if (!target) return
+
+  target.innerHTML = signals.map((signal) => `
+    <article class="intel-signal ${signal.level.toLowerCase()}">
+      <div class="intel-signal-top">
+        <span><i>${signal.icon}</i>${signal.title}</span>
+        <em>${signal.levelLabel}</em>
+      </div>
+      <div class="intel-signal-body">
+        <div class="intel-signal-score"><b>${signal.score}</b><small>แรง</small></div>
+        <ul>${signal.reasons.map((reason) => `<li>${reason}</li>`).join('')}</ul>
+      </div>
+      ${signal.evidence ? `<p class="intel-signal-evidence">${signal.evidence}</p>` : ''}
+    </article>
+  `).join('')
+}
+
 function render(analysis) {
   const card = ensureCard()
   if (!card) return
@@ -109,11 +139,14 @@ function render(analysis) {
   card.classList.remove('intel-loading')
   card.dataset.state = analysis.state
   document.querySelector('#intelState').textContent = stateLabels[analysis.state] || analysis.state
-  document.querySelector('#intelConfidence').textContent = `ข้อมูล ${analysis.sampleSize}/30 งวด • Coverage ${analysis.dataConfidence}%`
+  const coverage = Math.round(Math.min(100, (analysis.sampleSize / 30) * 100))
+  document.querySelector('#intelConfidence').textContent = `ข้อมูล ${analysis.sampleSize}/30 งวด • สะสม ${coverage}%`
   document.querySelector('#intelShift').textContent = analysis.shiftScore
   document.querySelector('#intelCompression').textContent = analysis.compressionScore
   document.querySelector('#intelShiftGauge').style.setProperty('--intel-value', analysis.shiftScore)
   document.querySelector('#intelCompressionGauge').style.setProperty('--intel-value', analysis.compressionScore)
+
+  renderSignals(analysis)
 
   const high = analysis.saturation.high
   const even = analysis.saturation.even
