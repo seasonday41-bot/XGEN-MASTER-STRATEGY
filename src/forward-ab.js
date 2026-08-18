@@ -1,4 +1,4 @@
-import { analyzeHistory } from './formula.js'
+import { analyzePercentCore } from './formula.js'
 import { analyzeMarketIntelligence } from './market-intelligence.js'
 import { buildDualSystems } from './dual-engine.js'
 import { loadAllRecentResults } from './supabase.js'
@@ -72,8 +72,19 @@ function nextDrawAfter(history, sourceDate) {
     .sort((a, b) => a.draw_date.localeCompare(b.draw_date))[0] || null
 }
 
+function latestPercentCoreBase(source) {
+  const core = analyzePercentCore(source)
+  return {
+    ...core,
+    rud: [...core.strong],
+    strongDigit: { digit: core.strong[0] },
+  }
+}
+
 function snapshotCurrent(item) {
-  const base = analyzeHistory(item.history)
+  const source = item.history[0]
+  if (!source) return null
+  const base = latestPercentCoreBase(source)
   const intelligence = analyzeMarketIntelligence(item.history)
   const dual = buildDualSystems(base, intelligence, item.history)
   if (!dual.fusion) return null
@@ -114,6 +125,7 @@ function ensureCurrentSnapshot(records, item) {
   if (snapshot) records.push(snapshot)
 }
 
+// Legacy lab only. This function is not loaded by the PERCENT CORE production entry.
 export async function syncAllForwardAB() {
   const all = await loadAllRecentResults(30)
   const store = readStore()
