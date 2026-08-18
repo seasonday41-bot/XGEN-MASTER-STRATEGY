@@ -1,158 +1,67 @@
 import { describe, expect, it } from 'vitest'
 import {
-  analyzeHistory,
-  calculateDoubleAnalysis,
-  calculateDoubleProbability,
-  calculateWin6,
-  resolveUniqueRud,
-  selectColdPairs,
-  selectStrongDigit,
+  analyzePercentCore,
+  calculateFormulaResults,
+  detectPatterns,
+  rankDigits,
 } from './formula.js'
 
-describe('Xgen formula', () => {
-  it('คำนวณ 240-56 เป็นรูด 6-7 และ WIN6 675280', () => {
-    expect(calculateWin6('240', '56')).toEqual({
-      rud: [6, 7],
-      win6: [6, 7, 5, 2, 8, 0],
-    })
-  })
-
-  it('คัดเจาะ 2 ตัวอย่างลาวพัฒนาได้ตามกติกาย้อนหลัง 4 งวด', () => {
-    const history = [
-      { top3: '718', bottom2: '97' },
-      { top3: '670', bottom2: '96' },
-      { top3: '030', bottom2: '30' },
-      { top3: '677', bottom2: '76' },
-    ]
-    const result = analyzeHistory(history)
-    expect(result.win6.join('')).toBe('562017')
-    expect(result.pin2.map((item) => item.pair)).toEqual(['25', '15', '12', '56', '05'])
-    expect(result.pin2.map((item) => item.score)).toEqual([0, 1, 1, 4, 4])
-    expect(result.strongDigit).toMatchObject({ digit: 5, appearances: 4 })
-  })
-
-  it('ใช้ประวัติเพิ่มเฉพาะเปอร์เซ็นต์เบิ้ลโดยไม่เปลี่ยนรูด WIN6 เจาะ 2 และตัวแรง', () => {
-    const recent = [
-      { top3: '718', bottom2: '97' },
-      { top3: '670', bottom2: '96' },
-      { top3: '030', bottom2: '30' },
-      { top3: '677', bottom2: '76' },
-    ]
-    const shortResult = analyzeHistory(recent)
-    const longResult = analyzeHistory([
-      ...recent,
-      ...Array.from({ length: 16 }, () => ({ top3: '123', bottom2: '45' })),
+describe('PERCENT CORE', () => {
+  it('คำนวณ 8 สูตรของ 978-63 ได้ตรงตำรา', () => {
+    expect(calculateFormulaResults('978', '63')).toEqual([
+      '1956',
+      '8802',
+      '3528',
+      '7287',
+      '10065',
+      '293589',
+      '4395',
+      '75088',
     ])
-
-    expect({
-      rud: longResult.rud,
-      win6: longResult.win6,
-      pin2: longResult.pin2,
-      strongDigit: longResult.strongDigit,
-    }).toEqual({
-      rud: shortResult.rud,
-      win6: shortResult.win6,
-      pin2: shortResult.pin2,
-      strongDigit: shortResult.strongDigit,
-    })
-    expect(longResult.doubleAnalysis.percentage).not.toBeNull()
   })
 
-  it('ไม่สร้างเลขเบิ้ลใน 15 คู่ของ WIN6', () => {
-    const history = Array.from({ length: 4 }, () => ({ top3: '000', bottom2: '00' }))
-    const pairs = selectColdPairs([0, 1, 2, 3, 4, 5], history, 15)
-    expect(pairs).toHaveLength(15)
-    expect(pairs.every((item) => item.pair[0] !== item.pair[1])).toBe(true)
+  it('จัด Ranking แบบ Equal Weight ได้ตัวแรง 5-8 และรอง 2-9', () => {
+    const ranking = rankDigits(calculateFormulaResults('978', '63'))
+    expect(ranking.slice(0, 4).map((item) => item.digit)).toEqual([5, 8, 2, 9])
+    expect(ranking.slice(0, 2).map((item) => item.score)).toEqual([12, 12])
   })
 
-  it('คัดตัวแรงจากเลขที่ซ้ำในเจาะ 2 มากที่สุดและใช้คะแนนตัดสินเมื่อเสมอ', () => {
-    const pin2 = [
-      { digits: [1, 2], pair: '12', score: 1 },
-      { digits: [1, 3], pair: '13', score: 2 },
-      { digits: [2, 4], pair: '24', score: 8 },
-      { digits: [3, 4], pair: '34', score: 8 },
-    ]
-
-    expect(selectStrongDigit(pin2, [1, 2, 3, 4])).toMatchObject({
-      digit: 1,
-      appearances: 2,
-      scoreTotal: 3,
-    })
+  it('Strong Lock + MOD10 สร้าง WIN6 และตัวที่ 7 ตรงตัวอย่าง', () => {
+    const result = analyzePercentCore({ top3: '978', bottom2: '63' })
+    expect(result.strong).toEqual([5, 8])
+    expect(result.secondary).toEqual([2, 9])
+    expect(result.win6).toEqual([5, 8, 2, 3, 7, 9])
+    expect(result.seventh).toBe(0)
+    expect(result.keyPairs).toEqual(['28', '37'])
   })
 
-  it('ใช้ตัวแรงแทนรูดรองเมื่อรูดหลักและรูดรองซ้ำกัน', () => {
-    expect(resolveUniqueRud([7, 7], { digit: 0 }, [7, 9, 3, 4, 0, 6])).toEqual([7, 0])
+  it('Pair Collision คัดเจาะ 2 ตาม formulaHits ก่อน', () => {
+    const result = analyzePercentCore({ top3: '978', bottom2: '63' })
+    expect(result.pin2.map((item) => item.pair)).toEqual(['28', '58', '59', '35', '08'])
+    expect(result.pin2.map((item) => item.formulaHits)).toEqual([4, 3, 3, 3, 2])
   })
 
-  it('ใช้เลขถัดไปใน WIN6 เมื่อตัวแรงยังซ้ำกับรูดหลัก', () => {
-    expect(resolveUniqueRud([7, 7], { digit: 7 }, [7, 9, 3, 4, 0, 6])).toEqual([7, 9])
+  it('คัดเจาะ 3 และชุดเสริมตรงตัวอย่าง', () => {
+    const result = analyzePercentCore({ top3: '978', bottom2: '63' })
+    expect(result.pin3.map((item) => item.triple)).toEqual(['258', '058', '358'])
+    expect(result.pin3Extra.map((item) => item.triple)).toEqual(['589', '028'])
   })
 
-  it('คงรูดเดิมเมื่อรูดหลักและรูดรองไม่ซ้ำกัน', () => {
-    expect(resolveUniqueRud([6, 7], { digit: 5 }, [6, 7, 5, 2, 8, 0])).toEqual([6, 7])
-  })
-
-  it('คำนวณเลขเบิ้ล 681-16 เป็น 77 และ 88 ตามสูตร HTML', () => {
-    expect(calculateDoubleAnalysis('681', '16')).toEqual({
-      pattern: 'ปกติ',
-      doubles: ['77', '88'],
+  it('ตรวจเบิ้ล ตอง และพี่น้องจาก 8 สูตรเท่านั้น', () => {
+    expect(detectPatterns(calculateFormulaResults('978', '63'))).toEqual({
+      doubles: ['88', '00'],
+      triples: [],
+      siblings: ['56', '78', '01', '89', '34'],
     })
   })
 
-  it('วิเคราะห์ 088 เป็นเบิ้ลหลังและไม่แสดง 88 ซ้ำ', () => {
-    expect(calculateDoubleAnalysis('088', '07')).toEqual({
-      pattern: 'เบิ้ลหลัง',
-      doubles: ['88'],
+  it('รับผลล่าสุดเพียง 1 งวดโดยไม่ต้องมี history', () => {
+    const result = analyzePercentCore({
+      draw_date: '2026-08-19',
+      top3: '978',
+      bottom2: '63',
     })
-  })
-
-  it('แยกเบิ้ลหน้า หาม และตองได้', () => {
-    expect(calculateDoubleAnalysis('881', '00').pattern).toBe('เบิ้ลหน้า')
-    expect(calculateDoubleAnalysis('818', '00').pattern).toBe('หาม')
-    expect(calculateDoubleAnalysis('888', '00').pattern).toBe('ตอง')
-  })
-
-  it('ให้ 42% และเน้นเบิ้ลเมื่อย้อนหลังเข้า 8 จาก 19 จุด', () => {
-    const history = [
-      ...Array.from({ length: 8 }, () => ({ top3: '112', bottom2: '00' })),
-      ...Array.from({ length: 11 }, () => ({ top3: '123', bottom2: '00' })),
-      { top3: '456', bottom2: '00' },
-    ]
-
-    expect(calculateDoubleProbability(history)).toEqual({
-      percentage: 42,
-      hits: 8,
-      samples: 19,
-      advice: 'เน้นเบิ้ล',
-      message: 'โอกาสเบิ้ล 42% • เน้นเบิ้ล',
-    })
-  })
-
-  it('แยกระวังเบิ้ลและเน้นรูดสลับตามเปอร์เซ็นต์ย้อนหลัง', () => {
-    const makeHistory = (hits) => [
-      ...Array.from({ length: hits }, () => ({ top3: '112', bottom2: '00' })),
-      ...Array.from({ length: 19 - hits }, () => ({ top3: '123', bottom2: '00' })),
-      { top3: '456', bottom2: '00' },
-    ]
-
-    expect(calculateDoubleProbability(makeHistory(6))).toMatchObject({
-      percentage: 32,
-      advice: 'ระวังเบิ้ล',
-    })
-    expect(calculateDoubleProbability(makeHistory(5))).toMatchObject({
-      percentage: 26,
-      advice: 'เน้นรูดสลับ',
-    })
-  })
-
-  it('ไม่แสดงเปอร์เซ็นต์เมื่อมีจุด Walk-forward ต่ำกว่า 15 จุด', () => {
-    const history = Array.from({ length: 15 }, () => ({ top3: '123', bottom2: '00' }))
-
-    expect(calculateDoubleProbability(history)).toMatchObject({
-      percentage: null,
-      samples: 14,
-      advice: 'ข้อมูลยังไม่พอ',
-      message: 'โอกาสเบิ้ล — • ข้อมูลยังไม่พอ',
-    })
+    expect(result.source.draw_date).toBe('2026-08-19')
+    expect(result.formulaResults).toHaveLength(8)
   })
 })
