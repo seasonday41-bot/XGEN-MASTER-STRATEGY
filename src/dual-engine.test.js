@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeHistory } from './formula.js'
+import { analyzePercentCore } from './formula.js'
 import { analyzeMarketIntelligence } from './market-intelligence.js'
 import { buildDualSystems, buildPin3FromSystem } from './dual-engine.js'
 import { buildStatisticalMotion } from './statistical-motion.js'
@@ -30,6 +30,15 @@ const history = [
   draw('088', '07', '2026-07-28'),
 ]
 
+function percentCoreBase(source) {
+  const core = analyzePercentCore(source)
+  return {
+    ...core,
+    rud: [...core.strong],
+    strongDigit: { digit: core.strong[0] },
+  }
+}
+
 describe('Statistical Motion', () => {
   it('exposes describe-style statistics for 3/5/10/20/30 windows', () => {
     const motion = buildStatisticalMotion(history)
@@ -42,9 +51,9 @@ describe('Statistical Motion', () => {
   })
 })
 
-describe('Dual Engine', () => {
-  it('keeps classic outputs and creates a six-digit fusion lane', () => {
-    const base = analyzeHistory(history)
+describe('Dual Engine compatibility', () => {
+  it('can consume the latest-draw Percent Core base without calling legacy history formula', () => {
+    const base = percentCoreBase(history[0])
     const intelligence = analyzeMarketIntelligence(history)
     const dual = buildDualSystems(base, intelligence, history)
 
