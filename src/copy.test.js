@@ -1,38 +1,29 @@
 import { describe, expect, it } from 'vitest'
+import { analyzePercentCore } from './formula.js'
 import { formatCopyText } from './copy.js'
 
-describe('Xgen copy text', () => {
-  it('จัดผลให้อ่านง่ายและไม่มีคำอธิบายย้อนหลัง 4 งวด', () => {
-    const text = formatCopyText({
-      marketName: 'หุ้นไต้หวัน VIP',
-      source: { top3: '713', bottom2: '34' },
-      strongDigit: { digit: 8 },
-      rud: [7, 0],
-      win6: [7, 0, 2, 5, 6, 8],
-      doubleAnalysis: {
-        pattern: 'ปกติ',
-        message: 'โอกาสเบิ้ล 22% • เน้นรูดสลับ',
-        doubles: ['77', '88'],
-      },
-      pin2: ['28', '68', '78', '08', '26'].map((pair) => ({ pair })),
-    })
+describe('PERCENT CORE copy', () => {
+  it('จัดข้อความ Copy ตามรูปแบบ FULL SYSTEM', () => {
+    const result = {
+      marketName: 'ตลาดทดสอบ',
+      ...analyzePercentCore({ top3: '978', bottom2: '63' }),
+    }
 
-    expect(text).toBe([
-      '🍀 Xgen | หุ้นไต้หวัน VIP',
-      '713-34',
+    expect(formatCopyText(result)).toBe([
+      '🏷️ ตลาด ตลาดทดสอบ',
+      '📊 ผลล่าสุด 978-63',
+      '🔥 ตัวแรง 5 • 8',
+      '⭐ รอง 2 • 9',
+      '✨ WIN6 5 • 8 • 2 • 3 • 7 • 9 (0)',
+      '🔥 คู่เด่น 28 • 37',
       '',
-      '🔥 ตัวแรง 8',
-      '⚡ รูดหลัก 7 | รูดรอง 0',
-      '✨ WIN6 7 • 0 • 2 • 5 • 6 • 8',
+      '🎯 เจาะ 2 = 28 • 58 • 59 • 35 • 08',
+      '🎯 เจาะ 3 = 258 • 058 • 358',
+      '⭐ เจาะ 3 เสริม 589 • 028',
       '',
-      '🔄 วิเคราะห์เบิ้ล/หาม: ปกติ',
-      'โอกาสเบิ้ล 22% • เน้นรูดสลับ',
-      '🎲 เลขเบิ้ลจากสูตร 77 • 88',
-      '',
-      '🎯 เจาะ 2 (กลับได้)',
-      '28 • 68 • 78 • 08 • 26',
+      '🔄 เบิ้ล 88 • 00',
+      '👑 ตอง ไม่มี',
+      '👯 พี่น้อง 56 • 78 • 01 • 89 • 34',
     ].join('\n'))
-    expect(text).not.toContain('ย้อนหลัง 4 งวด')
-    expect(text).not.toContain('ผลล่าสุด')
   })
 })
