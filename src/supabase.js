@@ -33,6 +33,31 @@ export async function loadMarkets() {
   return data
 }
 
+function normalizeLatestResult(row) {
+  if (!row) throw new Error('ยังไม่มีผลล่าสุดของตลาดนี้')
+
+  const top3 = String(row.top3 ?? '').trim().padStart(3, '0')
+  const bottom2 = String(row.bottom2 ?? '').trim().padStart(2, '0')
+  const drawDate = String(row.draw_date ?? '').trim()
+
+  if (!/^\d{3}$/.test(top3) || !/^\d{2}$/.test(bottom2) || !/^\d{4}-\d{2}-\d{2}$/.test(drawDate)) {
+    throw new Error('ผลล่าสุดมีรูปแบบวันที่/3 บน/2 ล่างไม่ถูกต้อง')
+  }
+
+  return { ...row, draw_date: drawDate, top3, bottom2 }
+}
+
+// PERCENT CORE ใช้ผลล่าสุดเพียง 1 งวดเท่านั้น ไม่มีการโหลดประวัติย้อนหลัง
+export async function loadLatestResult(marketKey) {
+  const { data, error } = await supabase.rpc('xgen_recent_results', {
+    p_market_key: marketKey,
+    p_limit: 1,
+  })
+
+  if (error) throw error
+  return normalizeLatestResult(data?.[0])
+}
+
 export async function loadRecentResults(marketKey, limit = 4) {
   const { data, error } = await supabase.rpc('xgen_recent_results', {
     p_market_key: marketKey,
