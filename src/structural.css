@@ -1,0 +1,50 @@
+:root { color-scheme: dark; }
+body { margin: 0; background: radial-gradient(circle at 50% -10%, #0d6b4d 0, #052b20 28%, #071611 70%); color: #f6fff9; }
+.struct-shell { width: min(720px, calc(100% - 24px)); margin: 0 auto; padding: 18px 0 48px; font-family: 'Noto Sans Thai Variable', sans-serif; }
+.struct-hero, .struct-control, .struct-card, .struct-source { border: 1px solid rgba(212, 184, 101, .28); background: linear-gradient(145deg, rgba(10,62,45,.94), rgba(5,31,24,.96)); box-shadow: 0 18px 50px rgba(0,0,0,.28), inset 0 1px rgba(255,255,255,.04); border-radius: 22px; }
+.struct-hero { padding: 22px; display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.struct-hero h1 { margin: 2px 0 4px; font-size: clamp(30px, 8vw, 54px); letter-spacing: -.04em; }
+.struct-hero h1 em { color: #e4c86f; font-style: normal; }
+.struct-hero p { margin: 0; color: #a9c9bc; font-size: 12px; }
+.struct-kicker { color: #e4c86f !important; letter-spacing: .12em; font-weight: 800; }
+.struct-badge { padding: 7px 10px; border-radius: 999px; background: rgba(228,200,111,.12); color: #e4c86f; border: 1px solid rgba(228,200,111,.3); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.struct-control { margin-top: 12px; padding: 16px; }
+.struct-control-row { display: grid; gap: 7px; margin-bottom: 10px; }
+.struct-control-row.inline { grid-template-columns: 1fr auto; }
+.struct-control label { color: #a9c9bc; font-size: 12px; }
+.struct-control input, .struct-control select, .struct-control button { min-height: 46px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(0,0,0,.18); color: #fff; padding: 0 14px; font: inherit; }
+.struct-control button, .struct-copy { cursor: pointer; background: linear-gradient(135deg, #d9bb60, #9a7a28) !important; color: #15251e !important; font-weight: 900 !important; border: 0 !important; }
+.struct-status { font-size: 12px; color: #9bc4b4; }
+.struct-status[data-type="error"] { color: #ffb0a7; }
+.struct-result { display: grid; gap: 12px; margin-top: 12px; }
+.hidden { display: none !important; }
+.struct-source { display: grid; grid-template-columns: 1.4fr 1fr .8fr; gap: 10px; padding: 16px; }
+.struct-source small, .struct-card small { color: #98b8ac; }
+.struct-source h2 { margin: 2px 0 0; font-size: 17px; }
+.struct-source strong { display: block; margin-top: 2px; font-size: 20px; color: #f2d779; }
+.struct-grid.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.struct-card { padding: 16px; }
+.struct-card.accent { background: linear-gradient(145deg, rgba(16,90,63,.95), rgba(5,39,28,.98)); }
+.struct-big-digits, .struct-digits { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.struct-big-digits b, .struct-digits b { display: grid; place-items: center; width: 46px; height: 46px; border-radius: 15px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.1); font-size: 22px; }
+.struct-big-digits b.hot, .struct-digits b.hot { color: #172119; background: linear-gradient(135deg, #f0d879, #b89737); }
+.struct-digits.compact b { width: 38px; height: 38px; border-radius: 12px; font-size: 18px; }
+.struct-card-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.struct-card-head > span { font-size: 11px; color: #7ea395; text-align: right; }
+.struct-picks { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.struct-pick { min-width: 64px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.055); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.struct-pick.primary { border: 1px solid rgba(228,200,111,.45); }
+.struct-pick b { font-size: 20px; }
+.struct-pick small { font-size: 10px; color: #e4c86f; }
+.struct-evidence p, .struct-backtest p { margin: 9px 0 0; display: flex; justify-content: space-between; gap: 14px; font-size: 12px; }
+.struct-evidence span, .struct-backtest span { color: #b9d1c8; text-align: right; }
+.struct-ranking { display: grid; gap: 8px; margin-top: 12px; }
+.rank-row { display: grid; grid-template-columns: 20px 24px 1fr 30px; gap: 8px; align-items: center; font-size: 12px; }
+.rank-row > span { color: #77998c; }
+.rank-row > b { color: #f0d879; font-size: 18px; }
+.rank-row > i { height: 6px; border-radius: 999px; background: linear-gradient(90deg, #dabc60 var(--score), rgba(255,255,255,.08) var(--score)); }
+.rank-row > strong { text-align: right; }
+.rank-row > small { grid-column: 3 / 5; color: #78998d; }
+.struct-copy { min-height: 50px; border-radius: 16px; font: inherit; }
+.struct-note { margin: 2px 4px 0; font-size: 11px; color: #77988b; text-align: center; }
+@media (max-width: 560px) { .struct-grid.two { grid-template-columns: 1fr; } .struct-source { grid-template-columns: 1fr 1fr; } .struct-source > div:first-child { grid-column: 1 / -1; } .struct-hero { display: block; } .struct-badge { display: inline-block; margin-top: 12px; } }
