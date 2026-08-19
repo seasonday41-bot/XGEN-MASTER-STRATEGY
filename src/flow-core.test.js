@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeFlowCore, calculateFlowPoints } from './flow-core.js'
+import {
+  analyzeFlowCore,
+  buildFlowWin6,
+  calculateFlowPoints,
+  findNaturalFlowReplacement,
+} from './flow-core.js'
 
 const history = [
   { draw_date: '2026-08-18', top3: '968', bottom2: '93' },
@@ -32,9 +37,27 @@ describe('FLOW CORE 3 Draw Point Flow', () => {
     expect(result.ranking.map((item) => item.digit)).toEqual([2, 4, 3, 1, 9])
   })
 
-  it('คัด WIN6 จากแต้มชุดเดียวกันและเติมแต้มชนบนล่างเมื่อไม่ครบ', () => {
+  it('คัด WIN6 ไม่ซ้ำ และใช้เลขไหลธรรมชาติแทนช่องที่ซ้ำ', () => {
     const result = analyzeFlowCore(history)
     expect(result.win6).toEqual([2, 4, 3, 1, 9, 6])
+    expect(new Set(result.win6).size).toBe(6)
+  })
+
+  it('ไล่เลขไหลธรรมชาติชั้นถัดไปเมื่อคู่ไหลชั้นแรกอยู่ใน WIN6 แล้ว', () => {
+    expect(findNaturalFlowReplacement(2, new Set([2, 3, 4]))).toBe(6)
+  })
+
+  it('กรณีแต้มซ้ำทั้งชุดยังเติม WIN6 ให้ครบ 6 ตัวและไม่ซ้ำ', () => {
+    const ranking = [{ digit: 0, count: 6, rank: 1 }]
+    const pointDraws = [
+      { topPoint: 0, bottomPoint: 0, crossPoint: 0 },
+      { topPoint: 0, bottomPoint: 0, crossPoint: 0 },
+      { topPoint: 0, bottomPoint: 0, crossPoint: 0 },
+    ]
+
+    const win6 = buildFlowWin6(ranking, pointDraws)
+    expect(win6).toEqual([0, 1, 3, 2, 7, 4])
+    expect(new Set(win6).size).toBe(6)
   })
 
   it('คัดเจาะ 2 และเจาะ 3 จากรูดและ WIN6 ตามกติกา', () => {
