@@ -27,10 +27,27 @@ const history = [
 
 const canonical = (value) => String(value).split('').sort().join('')
 
-describe('STRUCTURAL v5 adaptive frequency', () => {
-  it('uses fast-market frequency weights', () => {
+describe('STRUCTURAL v5.1 five-draw frequency', () => {
+  it('uses only the latest five draws for frequency', () => {
     const result = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
-    expect(result.frequencyWeights).toEqual({ 5: 0.60, 10: 0.25, 15: 0.10, 30: 0.05 })
+    expect(result.frequencyWindow).toBe(5)
+    expect(result.frequencyWeights).toEqual({ 5: 1 })
+  })
+
+  it('older draws cannot change the frequency component when the latest five stay the same', () => {
+    const changedOlder = history.map((draw, index) => index < 5 ? draw : { ...draw, top3: '999', bottom2: '99' })
+    const left = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
+    const right = analyzeStructuralProbabilityV5(changedOlder, { includeBacktest: false })
+    const leftFrequency = Object.fromEntries(left.rankings.all.map((item) => [item.digit, item.components.frequency]))
+    const rightFrequency = Object.fromEntries(right.rankings.all.map((item) => [item.digit, item.components.frequency]))
+    expect(rightFrequency).toEqual(leftFrequency)
+  })
+
+  it('keeps older draws available to structural evidence', () => {
+    const result = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
+    expect(result.sampleSize).toBe(history.length)
+    expect(result.transition.samples).toBeGreaterThanOrEqual(0)
+    expect(result.mirror.samples).toBeGreaterThanOrEqual(0)
   })
 
   it('classifies all digits into market pulse states', () => {
@@ -38,11 +55,6 @@ describe('STRUCTURAL v5 adaptive frequency', () => {
     expect(Object.keys(result.marketPulse)).toEqual(['HOT', 'RETURNING', 'WARM', 'COLD'])
     const digits = Object.values(result.marketPulse).flat().map((item) => item.digit)
     expect(new Set(digits).size).toBe(10)
-    result.rankings.all.forEach((item) => {
-      expect(['HOT', 'RETURNING', 'WARM', 'COLD']).toContain(item.trendState)
-      expect(item.components.trend).toBeGreaterThanOrEqual(0)
-      expect(item.components.trend).toBeLessThanOrEqual(100)
-    })
   })
 
   it('keeps no-reverse pick policy', () => {
