@@ -17,7 +17,7 @@ app.innerHTML = `
       <div class="hero-copy">
         <p class="eyebrow"><i></i> FLOW CORE</p>
         <h1>Xgen <em>ELITE</em></h1>
-        <p class="subtitle">3 Draw Point Flow • RUD2 • WIN6 • PIN2 • PIN3</p>
+        <p class="subtitle">RUD • WIN6 • PIN2 • PIN3</p>
       </div>
       <div class="hero-seal">
         <span><i></i> LIVE</span>
@@ -25,8 +25,8 @@ app.innerHTML = `
         <small>ตลาด</small>
       </div>
       <div class="hero-footer">
-        <span>◆ 3 DRAW FLOW SYSTEM</span>
-        <span>LAST 3 DRAWS</span>
+        <span>◆ XGEN FLOW CORE</span>
+        <span>ELITE SYSTEM</span>
       </div>
     </header>
 
@@ -62,11 +62,11 @@ app.innerHTML = `
     <section id="emptyState" class="empty-card">
       <div class="radar" aria-hidden="true"><span></span></div>
       <strong>พร้อมเปิด FLOW CORE</strong>
-      <p>เลือกตลาดเพื่อคำนวณจาก 3 งวดล่าสุด</p>
+      <p>เลือกตลาดเพื่อเปิดชุดวิเคราะห์</p>
     </section>
 
     <section id="result" class="result hidden" aria-live="polite">
-      <div class="source-head">
+      <div class="source-head flow-source-head">
         <div class="market-identity">
           <span aria-hidden="true">◆</span>
           <div><p class="section-kicker">สนามวิเคราะห์</p><h2 id="marketName">—</h2></div>
@@ -77,53 +77,35 @@ app.innerHTML = `
         </div>
       </div>
 
-      <div class="result-grid">
+      <div class="result-grid flow-result-grid">
         <article class="result-card rud-card flow-rud-card">
-          <div class="card-label"><span>⚡</span><div><b>รูด 2 ตัว</b><small>FLOW RANKING • 3 งวด</small></div></div>
+          <div class="card-label"><span>⚡</span><div><b>รูด 2 ตัว</b><small>MAIN • SECONDARY</small></div></div>
           <div id="rudNumbers" class="flow-rud-numbers"></div>
         </article>
 
-        <article class="result-card win-card">
-          <div class="card-label"><span>✦</span><div><b>WIN6</b><small>POINT FLOW • CROSS FILL</small></div></div>
+        <article class="result-card win-card flow-win-card">
+          <div class="card-label"><span>✦</span><div><b>WIN6</b><small>SELECTED 6</small></div></div>
           <div id="win6" class="digit-row"></div>
-          <p class="note flow-win-note">รูด 2 ตัวล็อกอยู่หน้า WIN6</p>
         </article>
       </div>
 
-      <article class="result-card flow-points-card">
+      <article class="result-card pin-card flow-pin-card flow-pin2-card">
         <div class="pin-header">
-          <div>
-            <div class="card-label"><span>◈</span><div><b>แต้มไหล 3 งวด</b><small>บน = สิบ+หน่วย • ล่าง = 2 ตัวรวม</small></div></div>
-            <p>เลขซ้ำมากที่สุดเป็นรูดหลัก • คะแนนเท่ากันให้งวดล่าสุดก่อน</p>
-          </div>
-        </div>
-        <div id="pointHistory" class="flow-history"></div>
-        <div class="flow-sequence"><small>ชุดแต้มรวม</small><strong id="pointSequence">—</strong></div>
-      </article>
-
-      <article class="result-card pin-card">
-        <div class="pin-header">
-          <div>
-            <div class="card-label"><span>◎</span><div><b>เจาะ 2</b><small>RUD2 + WIN6 • 5 ชุด</small></div></div>
-            <p>คู่รูดก่อน แล้วจับรูดหลัก/รองกับเลข WIN ที่แรงถัดมา</p>
-          </div>
+          <div class="card-label"><span>◎</span><div><b>เจาะ 2</b><small>5 ชุดเด่น</small></div></div>
           <button id="copy" class="copy-button" type="button" aria-label="คัดลอกชุด FLOW CORE">คัดลอกชุด</button>
         </div>
         <div id="pin2" class="pair-row"></div>
       </article>
 
-      <article class="result-card pin-card">
+      <article class="result-card pin-card flow-pin-card flow-pin3-card">
         <div class="pin-header">
-          <div>
-            <div class="card-label"><span>🎯</span><div><b>เจาะ 3</b><small>RUD2 CORE • TOP 3 + EXTRA 2</small></div></div>
-            <p>ใช้รูด 2 ตัวเป็นแกน แล้วเติมจาก WIN6 ตามลำดับ</p>
-          </div>
+          <div class="card-label"><span>🎯</span><div><b>เจาะ 3</b><small>TOP 3 + EXTRA 2</small></div></div>
         </div>
+        <div class="flow-subhead"><span>ตัวหลัก</span></div>
         <div id="pin3" class="pair-row"></div>
+        <div class="flow-subhead extra"><span>ชุดเสริม</span></div>
         <div id="pin3Extra" class="pair-row"></div>
       </article>
-
-      <p class="note">คำนวณจาก 3 งวดล่าสุดเท่านั้น • รูดและ WIN6 ใช้ชุดแต้มเดียวกัน</p>
     </section>
   </main>
 `
@@ -146,8 +128,6 @@ const els = {
   sourceBottom: document.querySelector('#sourceBottom'),
   rudNumbers: document.querySelector('#rudNumbers'),
   win6: document.querySelector('#win6'),
-  pointHistory: document.querySelector('#pointHistory'),
-  pointSequence: document.querySelector('#pointSequence'),
   pin2: document.querySelector('#pin2'),
   pin3: document.querySelector('#pin3'),
   pin3Extra: document.querySelector('#pin3Extra'),
@@ -267,22 +247,9 @@ function renderResult(marketName, analysis) {
     <span class="digit ${analysis.rud.includes(digit) ? 'locked' : ''}">${digit}</span>
   `).join('')
 
-  els.pointHistory.innerHTML = analysis.draws.map((draw, index) => `
-    <div class="flow-history-row ${index === analysis.draws.length - 1 ? 'latest' : ''}">
-      <div>
-        <small>${formatThaiDate(draw.draw_date)}</small>
-        <strong>${draw.top3}-${draw.bottom2}</strong>
-      </div>
-      <span><small>แต้มบน</small><b>${draw.topPoint}</b></span>
-      <span><small>แต้มล่าง</small><b>${draw.bottomPoint}</b></span>
-      <em>→ ${draw.topPoint} • ${draw.bottomPoint}</em>
-    </div>
-  `).join('')
-
-  els.pointSequence.textContent = analysis.pointSequence.join(' • ')
-  els.pin2.innerHTML = pairItems(analysis.pin2, 'pair', 'RUD FLOW')
-  els.pin3.innerHTML = pairItems(analysis.pin3, 'triple', 'TOP 3')
-  els.pin3Extra.innerHTML = pairItems(analysis.pin3Extra, 'triple', 'EXTRA')
+  els.pin2.innerHTML = pairItems(analysis.pin2, 'pair', 'เด่น')
+  els.pin3.innerHTML = pairItems(analysis.pin3, 'triple', 'หลัก')
+  els.pin3Extra.innerHTML = pairItems(analysis.pin3Extra, 'triple', 'เสริม')
 
   els.empty.classList.add('hidden')
   els.result.classList.remove('hidden')
@@ -298,13 +265,13 @@ async function calculate() {
   const selected = markets.find((item) => item.market_key === marketKey)
   els.market.disabled = true
   els.refresh.disabled = true
-  setStatus('กำลังคำนวณ FLOW CORE จาก 3 งวดล่าสุด...', 'loading')
+  setStatus('กำลังวิเคราะห์ FLOW CORE...', 'loading')
 
   try {
     const history = await loadLatestThreeResults(marketKey)
     const analysis = analyzeFlowCore(history)
     renderResult(selected.market_name, analysis)
-    setStatus(`พร้อมแล้ว • ล่าสุด ${formatThaiDate(analysis.source.draw_date)} • ใช้ 3 งวด`, 'ready')
+    setStatus(`พร้อมแล้ว • ล่าสุด ${formatThaiDate(analysis.source.draw_date)}`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'โหลดข้อมูลไม่สำเร็จ', 'error')
