@@ -12,7 +12,7 @@ app.innerHTML = `
       <div>
         <p class="struct-kicker">XGEN • MATHEMATICAL & STRUCTURAL PROBABILITY</p>
         <h1>Xgen <em>STRUCTURAL</em></h1>
-        <p>Frequency 5 งวด • Pattern • Transition • Mirror • Walk-forward</p>
+        <p>Frequency 5 งวด • Position Gate • Matrix Challenger • Walk-forward</p>
       </div>
       <span class="struct-badge">NO RANDOM</span>
     </header>
@@ -53,12 +53,12 @@ app.innerHTML = `
       </article>
 
       <article class="struct-card">
-        <div class="struct-card-head"><small>🎯 เจาะ 2 บน</small><span>ไม่แสดงคู่กลับซ้ำ</span></div>
+        <div class="struct-card-head"><small>🎯 เจาะ 2 บน</small><span>Champion • ไม่แสดงคู่กลับซ้ำ</span></div>
         <div id="pin2Top" class="struct-picks"></div>
       </article>
 
       <article class="struct-card">
-        <div class="struct-card-head"><small>🎯 เจาะ 2 ล่าง</small><span>ไม่แสดงคู่กลับซ้ำ</span></div>
+        <div class="struct-card-head"><small>🎯 เจาะ 2 ล่าง</small><span>Champion • ไม่แสดงคู่กลับซ้ำ</span></div>
         <div id="pin2Bottom" class="struct-picks"></div>
       </article>
 
@@ -68,7 +68,7 @@ app.innerHTML = `
       </article>
 
       <article class="struct-card">
-        <div class="struct-card-head"><small>🎯 เจาะ 3 ปกติ</small><span>1 ชุดเลข = 1 ช่อง • 3 หลักไม่ซ้ำ</span></div>
+        <div class="struct-card-head"><small>🎯 เจาะ 3 ปกติ</small><span>Champion • 3 หลักไม่ซ้ำ</span></div>
         <div id="pin3Normal" class="struct-picks triples"></div>
       </article>
 
@@ -78,13 +78,33 @@ app.innerHTML = `
         <div class="pattern-evidence"><span>เฉพาะโครงสร้าง <b>AAB / ABB</b> • ไม่แสดงชุดกลับซ้ำ</span></div>
       </article>
 
+      <article class="struct-card pattern-card">
+        <div class="struct-card-head"><small>🧪 MATRIX Challenger • เจาะ 2</small><span>ทดลองเทียบ • ไม่ Hard Lock</span></div>
+        <div class="pattern-evidence"><span><b>บน</b> • Position + Missing + Polarity + Gap</span></div>
+        <div id="matrixPin2Top" class="struct-picks"></div>
+        <div class="pattern-evidence"><span><b>ล่าง</b> • Position + Missing + Polarity + Gap</span></div>
+        <div id="matrixPin2Bottom" class="struct-picks"></div>
+        <div id="matrixPairModel" class="pattern-evidence"></div>
+      </article>
+
+      <article class="struct-card pattern-card">
+        <div class="struct-card-head"><small>🧪 MATRIX Challenger • เจาะ 3</small><span>Position + Shape + Transition + Step</span></div>
+        <div class="pattern-evidence"><span><b>ปกติ</b> • 3 ตัวต่างกัน</span></div>
+        <div id="matrixPin3Normal" class="struct-picks triples"></div>
+        <div class="pattern-evidence"><span><b>หาม</b> • ABA</span></div>
+        <div id="matrixPin3Ham" class="struct-picks triples"></div>
+        <div class="pattern-evidence"><span><b>เบิ้ล</b> • AAB / ABB</span></div>
+        <div id="matrixPin3Double" class="struct-picks triples"></div>
+        <div id="matrixTripleModel" class="pattern-evidence"></div>
+      </article>
+
       <div class="struct-grid two">
         <article class="struct-card">
           <small>🔍 Structural Evidence</small>
           <div id="evidence" class="struct-evidence"></div>
         </article>
         <article class="struct-card">
-          <small>📈 Walk-forward</small>
+          <small>📈 Walk-forward • Champion vs Matrix</small>
           <div id="backtest" class="struct-backtest"></div>
         </article>
       </div>
@@ -95,7 +115,7 @@ app.innerHTML = `
       </article>
 
       <button id="copy" class="struct-copy" type="button">คัดลอกชุด</button>
-      <p class="struct-note">Frequency ใช้เฉพาะ 5 งวดล่าสุด • ข้อมูลเก่ากว่านั้นยังใช้กับ Pattern / Transition / Mirror / Balance / Gap • HOT / RETURNING / WARM / COLD เป็นสถานะเชิงสถิติ • Backtest ใช้ Walk-forward 10 งวดเมื่อข้อมูลเพียงพอ</p>
+      <p class="struct-note">ชุด Copy ยังใช้ Champion เดิม • MATRIX เป็น Challenger สำหรับเทียบ Walk-forward เท่านั้น • Frequency ใช้เฉพาะ 5 งวดล่าสุด • ข้อมูลเก่ากว่านั้นใช้กับ Pattern / Transition / Mirror / Balance / Gap</p>
     </section>
   </main>
 `
@@ -120,6 +140,13 @@ const els = {
   pin2Double: document.querySelector('#pin2Double'),
   pin3Normal: document.querySelector('#pin3Normal'),
   pin3Double: document.querySelector('#pin3Double'),
+  matrixPin2Top: document.querySelector('#matrixPin2Top'),
+  matrixPin2Bottom: document.querySelector('#matrixPin2Bottom'),
+  matrixPin3Normal: document.querySelector('#matrixPin3Normal'),
+  matrixPin3Ham: document.querySelector('#matrixPin3Ham'),
+  matrixPin3Double: document.querySelector('#matrixPin3Double'),
+  matrixPairModel: document.querySelector('#matrixPairModel'),
+  matrixTripleModel: document.querySelector('#matrixTripleModel'),
   doubleSignal: document.querySelector('#doubleSignal'),
   evidence: document.querySelector('#evidence'),
   backtest: document.querySelector('#backtest'),
@@ -240,6 +267,20 @@ function renderPulse(analysis) {
   }).join('')
 }
 
+function renderMatrix(analysis) {
+  const matrix = analysis.matrixChallenger
+  renderPicks(els.matrixPin2Top, matrix.pin2Top, 'pair')
+  renderPicks(els.matrixPin2Bottom, matrix.pin2Bottom, 'pair')
+  renderPicks(els.matrixPin3Normal, matrix.pin3Normal, 'triple')
+  renderPicks(els.matrixPin3Ham, matrix.pin3Ham, 'triple')
+  renderPicks(els.matrixPin3Double, matrix.pin3Double, 'triple')
+  els.matrixPairModel.innerHTML = `
+    <span>Anchor บน <b>${matrix.model.topPair.missingAnchor}</b> • ขั้วคู่/คี่ผสม ${matrix.model.topPair.parityMixedRate}% • สูง/ต่ำผสม ${matrix.model.topPair.highLowMixedRate}%</span>
+    <span>Anchor ล่าง <b>${matrix.model.bottomPair.missingAnchor}</b> • ขั้วคู่/คี่ผสม ${matrix.model.bottomPair.parityMixedRate}% • สูง/ต่ำผสม ${matrix.model.bottomPair.highLowMixedRate}%</span>
+  `
+  els.matrixTripleModel.innerHTML = `<span>Step Follow จากสถานการณ์คล้ายกัน <b>${matrix.model.stepFollowRate}%</b> • เป็นคะแนนประกอบ ไม่ใช่กฎบังคับ</span>`
+}
+
 function renderEvidence(analysis) {
   const currentPattern = analysis.currentPattern
   els.evidence.innerHTML = `
@@ -265,13 +306,15 @@ function renderBacktest(backtest) {
   }
   const m = backtest.metrics
   els.backtest.innerHTML = [
-    metric('รูดเข้าบน', m.rudTop, backtest.samples),
-    metric('รูดเข้าล่าง', m.rudBottom, backtest.samples),
-    metric('เจาะ 2 บน', m.pin2TopPair ?? m.pin2TopStraight, backtest.samples),
-    metric('เจาะ 2 ล่าง', m.pin2BottomPair ?? m.pin2BottomStraight, backtest.samples),
-    metric('เจาะ 3 ปกติ โต๊ด', m.pin3NormalPermutation, backtest.samples),
-    metric('เจาะ 3 เบิ้ล โต๊ด', m.pin3DoublePermutation, backtest.samples),
-    metric('Pattern Forecast', m.patternHit, backtest.patternForecastSamples),
+    metric('Champion 2 บน', m.pin2TopPair ?? m.pin2TopStraight, backtest.samples),
+    metric('MATRIX 2 บน', m.matrixPin2TopPair, backtest.samples),
+    metric('Champion 2 ล่าง', m.pin2BottomPair ?? m.pin2BottomStraight, backtest.samples),
+    metric('MATRIX 2 ล่าง', m.matrixPin2BottomPair, backtest.samples),
+    metric('Champion 3 ปกติ โต๊ด', m.pin3NormalPermutation, backtest.samples),
+    metric('MATRIX 3 ปกติ โต๊ด', m.matrixPin3NormalPermutation, backtest.samples),
+    metric('MATRIX 3 หาม โต๊ด', m.matrixPin3HamPermutation, backtest.samples),
+    metric('Champion 3 เบิ้ล โต๊ด', m.pin3DoublePermutation, backtest.samples),
+    metric('MATRIX 3 เบิ้ล โต๊ด', m.matrixPin3DoublePermutation, backtest.samples),
   ].join('')
 }
 
@@ -301,6 +344,7 @@ function renderResult(marketName, analysis) {
   renderPicks(els.pin2Double, twoDigitDoubles(analysis), 'pair')
   renderPicks(els.pin3Normal, analysis.pin3Normal, 'triple')
   renderPicks(els.pin3Double, analysis.pin3Double, 'triple')
+  renderMatrix(analysis)
   renderEvidence(analysis)
   renderBacktest(analysis.backtest)
   renderRanking(analysis)
@@ -313,13 +357,13 @@ async function calculate() {
   const selected = markets.find((item) => item.market_key === marketKey)
   els.market.disabled = true
   els.refresh.disabled = true
-  setStatus('กำลังวิเคราะห์ Frequency 5 งวดและโครงสร้างย้อนหลัง...', 'loading')
+  setStatus('กำลังวิเคราะห์ Champion และ MATRIX Challenger...', 'loading')
 
   try {
     const history = await loadRecentResults(marketKey, 30)
     const analysis = analyzeStructuralProbabilityV5(history, { includeBacktest: true, maxBacktest: 10 })
     renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • Frequency ${analysis.frequencyWindow} งวด • Pattern ใช้ข้อมูล ${analysis.sampleSize} งวด • v5.3`, 'ready')
+    setStatus(`พร้อม • Frequency ${analysis.frequencyWindow} งวด • Pattern ${analysis.sampleSize} งวด • v5.4 MATRIX`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'คำนวณไม่สำเร็จ', 'error')
