@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeStructuralProbabilityV3 } from './structural-probability-v3.js'
 import { analyzeStructuralProbabilityV4 } from './structural-probability-v4.js'
 
 const history = [
@@ -26,25 +25,32 @@ const history = [
   ['2026-07-30', '106', '64'],
 ].map(([draw_date, top3, bottom2]) => ({ draw_date, top3, bottom2 }))
 
-describe('STRUCTURAL v4 triple split', () => {
-  it('keeps existing pair picks unchanged', () => {
-    const v3 = analyzeStructuralProbabilityV3(history, { includeBacktest: false })
-    const v4 = analyzeStructuralProbabilityV4(history, { includeBacktest: false })
-    expect(v4.pin2Top).toEqual(v3.pin2Top)
-    expect(v4.pin2Bottom).toEqual(v3.pin2Bottom)
-    expect(v4.win6).toEqual(v3.win6)
-    expect(v4.reserve).toBe(v3.reserve)
+const canonical = (value) => value.split('').sort().join('')
+
+function expectUniqueCombinations(items, key) {
+  const keys = items.map((item) => canonical(item[key]))
+  expect(new Set(keys).size).toBe(items.length)
+}
+
+describe('STRUCTURAL v4.1 no reverse picks', () => {
+  it('keeps five top and bottom pairs without reverse duplicates', () => {
+    const result = analyzeStructuralProbabilityV4(history, { includeBacktest: false })
+    expect(result.pin2Top).toHaveLength(5)
+    expect(result.pin2Bottom).toHaveLength(5)
+    expectUniqueCombinations(result.pin2Top, 'pair')
+    expectUniqueCombinations(result.pin2Bottom, 'pair')
   })
 
-  it('builds five normal triples with three distinct digits', () => {
+  it('builds five normal triples with distinct digits and no permutation duplicates', () => {
     const result = analyzeStructuralProbabilityV4(history, { includeBacktest: false })
     expect(result.pin3Normal).toHaveLength(5)
     result.pin3Normal.forEach(({ triple }) => {
       expect(new Set(triple.split('')).size).toBe(3)
     })
+    expectUniqueCombinations(result.pin3Normal, 'triple')
   })
 
-  it('builds five double triples as AAB or ABB, never ABA', () => {
+  it('builds five double triples as AAB or ABB without reversed structure duplicates', () => {
     const result = analyzeStructuralProbabilityV4(history, { includeBacktest: false })
     expect(result.pin3Double).toHaveLength(5)
     result.pin3Double.forEach(({ triple }) => {
@@ -52,14 +58,15 @@ describe('STRUCTURAL v4 triple split', () => {
       expect((a === b && b !== c) || (b === c && a !== b)).toBe(true)
       expect(a === c && a !== b).toBe(false)
     })
+    expectUniqueCombinations(result.pin3Double, 'triple')
   })
 
-  it('adds separate walk-forward metrics for normal and double triples', () => {
+  it('reports combination-based walk-forward metrics', () => {
     const result = analyzeStructuralProbabilityV4(history, { includeBacktest: true, maxBacktest: 5 })
     expect(result.backtest.samples).toBe(5)
-    expect(result.backtest.metrics.pin3NormalPermutation).toBeGreaterThanOrEqual(0)
-    expect(result.backtest.metrics.pin3NormalPermutation).toBeLessThanOrEqual(100)
-    expect(result.backtest.metrics.pin3DoublePermutation).toBeGreaterThanOrEqual(0)
-    expect(result.backtest.metrics.pin3DoublePermutation).toBeLessThanOrEqual(100)
+    for (const key of ['pin2TopPair', 'pin2BottomPair', 'pin3NormalPermutation', 'pin3DoublePermutation']) {
+      expect(result.backtest.metrics[key]).toBeGreaterThanOrEqual(0)
+      expect(result.backtest.metrics[key]).toBeLessThanOrEqual(100)
+    }
   })
 })
