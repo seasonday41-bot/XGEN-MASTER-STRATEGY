@@ -32,10 +32,17 @@ const history = [
 
 function percentCoreBase(source) {
   const core = analyzePercentCore(source)
+  const compatibilityPin2 = core.pin2 || (core.mod10Pairs || []).map((item) => ({
+    pair: item.pair,
+    digits: item.digits,
+    score: item.score ?? 0,
+  }))
+
   return {
     ...core,
     rud: [...core.strong],
     strongDigit: { digit: core.strong[0] },
+    pin2: compatibilityPin2,
   }
 }
 
@@ -52,11 +59,12 @@ describe('Statistical Motion', () => {
 })
 
 describe('Dual Engine compatibility', () => {
-  it('can consume the latest-draw Percent Core base without calling legacy history formula', () => {
+  it('can consume the isolated legacy Percent compatibility base', () => {
     const base = percentCoreBase(history[0])
     const intelligence = analyzeMarketIntelligence(history)
     const dual = buildDualSystems(base, intelligence, history)
 
+    expect(base.engine).toContain('LEGACY PERCENT COMPATIBILITY')
     expect(dual.classic.win6).toEqual(base.win6)
     expect(dual.classic.rud).toEqual(base.rud)
     expect(dual.classic.pin2.map((item) => item.pair)).toEqual(base.pin2.map((item) => item.pair))

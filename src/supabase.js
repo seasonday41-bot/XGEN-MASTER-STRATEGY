@@ -19,6 +19,7 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   },
 })
 
+const FG_HISTORY_LIMIT = 30
 const dataHealthCache = new Map()
 const healthKey = (marketKey, limit) => `${marketKey}:${limit}`
 
@@ -47,15 +48,14 @@ function normalizeLatestResult(row) {
   return { ...row, draw_date: drawDate, top3, bottom2 }
 }
 
-// PERCENT CORE ใช้ผลล่าสุดเพียง 1 งวดเท่านั้น ไม่มีการโหลดประวัติย้อนหลัง
+// FG HISTORY CORE ใช้ผลล่าสุดเป็นต้นทาง และอ่านประวัติย้อนหลังเพื่อหา
+// เฉพาะงวดที่มี F และ G อยู่พร้อมกันใน 3 ตัวบน + 2 ตัวล่าง.
 export async function loadLatestResult(marketKey) {
-  const { data, error } = await supabase.rpc('xgen_recent_results', {
-    p_market_key: marketKey,
-    p_limit: 1,
-  })
+  const recent = await loadRecentResults(marketKey, FG_HISTORY_LIMIT)
+  const [latest, ...history] = recent
 
-  if (error) throw error
-  return normalizeLatestResult(data?.[0])
+  if (!latest) throw new Error('ยังไม่มีผลล่าสุดของตลาดนี้')
+  return normalizeLatestResult({ ...latest, history })
 }
 
 export async function loadRecentResults(marketKey, limit = 4) {

@@ -1,4 +1,4 @@
-const MOD10_PAIRS = [
+const LEGACY_MOD10_PAIRS = [
   [1, 9],
   [2, 8],
   [3, 7],
@@ -11,46 +11,56 @@ function validateInput(top3, bottom2) {
   }
 }
 
-function percentResult(value, percent) {
-  const scaled = value * percent
-  const integerPart = Math.floor(scaled / 100)
-  const decimals = String(scaled % 100).padStart(2, '0')
-  return `${integerPart}${decimals}`
+function normalizeRow(row) {
+  const top3 = String(row?.top3 ?? '').trim().padStart(3, '0')
+  const bottom2 = String(row?.bottom2 ?? '').trim().padStart(2, '0')
+  if (!/^\d{3}$/.test(top3) || !/^\d{2}$/.test(bottom2)) return null
+  return { ...row, top3, bottom2 }
+}
+
+function rowDigits(row) {
+  return `${row.top3}${row.bottom2}`.split('').map(Number)
+}
+
+function unique(values) {
+  return [...new Set(values)]
 }
 
 function canonicalPair(a, b) {
   return `${Math.min(a, b)}${Math.max(a, b)}`
 }
 
-function pairDigits(pair) {
-  return pair.split('').map(Number)
+function siblingPair(a, b) {
+  const diff = Math.abs(a - b)
+  return diff === 1 || diff === 9
 }
 
-export function calculateFormulaResults(top3, bottom2) {
-  validateInput(top3, bottom2)
+function legacyPercentResult(value, percent) {
+  const scaled = value * percent
+  const integerPart = Math.floor(scaled / 100)
+  const decimals = String(scaled % 100).padStart(2, '0')
+  return `${integerPart}${decimals}`
+}
 
+function legacyFormulaResults(top3, bottom2) {
   const top = Number(top3)
   const bottom = Number(bottom2)
   const reversedTop = Number([...top3].reverse().join(''))
   const cross = Number(`${top3[0]}${bottom2[1]}${top3[2]}${bottom2[0]}`)
 
   return [
-    percentResult(top, 2),
-    percentResult(top, 9),
-    percentResult(bottom, 56),
-    percentResult(top + bottom, 7),
-    percentResult(Math.abs(top - bottom), 11),
-    percentResult(Number(`${top3}${bottom2}`), 3),
-    percentResult(reversedTop, 5),
-    percentResult(cross, 8),
+    legacyPercentResult(top, 2),
+    legacyPercentResult(top, 9),
+    legacyPercentResult(bottom, 56),
+    legacyPercentResult(top + bottom, 7),
+    legacyPercentResult(Math.abs(top - bottom), 11),
+    legacyPercentResult(Number(`${top3}${bottom2}`), 3),
+    legacyPercentResult(reversedTop, 5),
+    legacyPercentResult(cross, 8),
   ]
 }
 
-export function rankDigits(formulaResults) {
-  if (!Array.isArray(formulaResults) || formulaResults.length !== 8) {
-    throw new Error('ต้องมีผลจากสูตรหลักครบ 8 สูตร')
-  }
-
+function legacyRankDigits(formulaResults) {
   const stats = Array.from({ length: 10 }, (_, digit) => ({
     digit,
     occurrences: 0,
@@ -60,7 +70,6 @@ export function rankDigits(formulaResults) {
   }))
 
   let scanOrder = 0
-
   formulaResults.forEach((result) => {
     const present = new Set()
     String(result).split('').forEach((value) => {
@@ -74,10 +83,7 @@ export function rankDigits(formulaResults) {
     present.forEach((digit) => { stats[digit].formulaHits += 1 })
   })
 
-  stats.forEach((item) => {
-    item.score = item.occurrences + item.formulaHits
-  })
-
+  stats.forEach((item) => { item.score = item.occurrences + item.formulaHits })
   return stats
     .sort((left, right) =>
       right.score - left.score ||
@@ -89,32 +95,27 @@ export function rankDigits(formulaResults) {
     .map((item, index) => ({ ...item, rank: index + 1 }))
 }
 
-export function scoreMod10Pairs(ranking) {
+function legacyScoreMod10Pairs(ranking) {
   const byDigit = new Map(ranking.map((item) => [item.digit, item]))
   const strong = new Set(ranking.slice(0, 2).map((item) => item.digit))
 
-  return MOD10_PAIRS.map((digits, sourceOrder) => {
+  return LEGACY_MOD10_PAIRS.map((digits, sourceOrder) => {
     const [a, b] = digits
     const aStat = byDigit.get(a)
     const bStat = byDigit.get(b)
     const balanceBonus = Math.min(aStat.score, bStat.score) * 1.5
     const strongBonus = (strong.has(a) ? 2 : 0) + (strong.has(b) ? 2 : 0)
     const rankBonus = ((10 - aStat.rank) + (10 - bStat.rank)) * 0.12
-    const score = aStat.score + bStat.score + balanceBonus + strongBonus + rankBonus
-
     return {
       pair: canonicalPair(a, b),
       digits,
       sourceOrder,
-      balanceBonus,
-      strongBonus,
-      rankBonus,
-      score,
+      score: aStat.score + bStat.score + balanceBonus + strongBonus + rankBonus,
     }
   }).sort((left, right) => right.score - left.score || left.sourceOrder - right.sourceOrder)
 }
 
-export function buildWin6(ranking, mod10Pairs) {
+function legacyBuildWin6(ranking, mod10Pairs) {
   const win6 = ranking.slice(0, 2).map((item) => item.digit)
   const selectedPairs = []
 
@@ -147,147 +148,218 @@ export function buildWin6(ranking, mod10Pairs) {
   return { win6, seventh, keyPairs }
 }
 
-export function analyzePairCollision(formulaResults, ranking, strongDigits, seventh) {
-  const collisions = new Map()
-  let firstSeen = 0
+// Compatibility only for dormant FLOW × PERCENT modules/tests that still call
+// analyzePercentCore without history. The live Xgen entry always supplies history
+// and therefore always follows FG HISTORY CORE below.
+function analyzeLegacyPercentCompatibility(input, top3, bottom2) {
+  const formulaResults = legacyFormulaResults(top3, bottom2)
+  const ranking = legacyRankDigits(formulaResults)
+  const strong = ranking.slice(0, 2).map((item) => item.digit)
+  const secondary = ranking.slice(2, 4).map((item) => item.digit)
+  const mod10Pairs = legacyScoreMod10Pairs(ranking)
+  const { win6, seventh, keyPairs } = legacyBuildWin6(ranking, mod10Pairs)
 
-  formulaResults.forEach((result, formulaIndex) => {
-    const digits = String(result).split('').map(Number)
-    for (let left = 0; left < digits.length; left += 1) {
-      for (let right = left + 1; right < digits.length; right += 1) {
-        if (digits[left] === digits[right]) continue
-        const pair = canonicalPair(digits[left], digits[right])
-        const current = collisions.get(pair) || {
-          pair,
-          digits: pairDigits(pair),
-          formulaSet: new Set(),
-          formulaHits: 0,
-          occurrences: 0,
-          firstSeen,
-        }
-        current.occurrences += 1
-        current.formulaSet.add(formulaIndex)
-        collisions.set(pair, current)
-        firstSeen += 1
-      }
-    }
-  })
-
-  const byDigit = new Map(ranking.map((item) => [item.digit, item]))
-  const strong = new Set(strongDigits)
-
-  return [...collisions.values()].map((item) => {
-    item.formulaHits = item.formulaSet.size
-    const baseStrength = item.digits.reduce((sum, digit) => sum + byDigit.get(digit).score, 0)
-    const strongCount = item.digits.filter((digit) => strong.has(digit)).length
-    const seventhBonus = item.digits.includes(seventh) ? 7 : 0
-    const score =
-      item.formulaHits * 18 +
-      item.occurrences * 4 +
-      strongCount * 12 +
-      seventhBonus +
-      baseStrength * 0.7
-
-    return {
-      pair: item.pair,
-      digits: item.digits,
-      formulaHits: item.formulaHits,
-      occurrences: item.occurrences,
-      baseStrength,
-      strongCount,
-      seventhBonus,
-      score,
-      firstSeen: item.firstSeen,
-    }
-  }).sort((left, right) =>
-    right.formulaHits - left.formulaHits ||
-    right.occurrences - left.occurrences ||
-    right.score - left.score ||
-    left.firstSeen - right.firstSeen ||
-    left.pair.localeCompare(right.pair),
-  )
+  return {
+    engine: 'LEGACY PERCENT COMPATIBILITY — FLOW ONLY',
+    source: { ...input, top3, bottom2 },
+    formulaResults,
+    ranking,
+    strong,
+    secondary,
+    mod10Pairs,
+    win6,
+    seventh,
+    keyPairs,
+  }
 }
 
-export function buildPin3(pairCollisions, ranking, strongDigits, seventh) {
-  const pairMap = new Map(pairCollisions.map((item) => [item.pair, item]))
-  const byDigit = new Map(ranking.map((item) => [item.digit, item]))
-  const strong = new Set(strongDigits)
+export function calculateFG(top3, bottom2) {
+  const top = String(top3 ?? '')
+  const bottom = String(bottom2 ?? '')
+  validateInput(top, bottom)
+
+  const f = (Number(top[1]) + Number(top[2])) % 10
+  const g = (Number(bottom[0]) + Number(bottom[1])) % 10
+  return { f, g, digits: [f, g] }
+}
+
+export function matchHistoryByFG(history, f, g) {
+  const rows = Array.isArray(history) ? history.map(normalizeRow).filter(Boolean) : []
+  return rows.filter((row) => {
+    const present = new Set(rowDigits(row))
+    return present.has(f) && present.has(g)
+  })
+}
+
+export function rankMatchedDigits(matchedHistory) {
+  const stats = Array.from({ length: 10 }, (_, digit) => ({
+    digit,
+    occurrences: 0,
+    drawHits: 0,
+    latestMatchIndex: Number.POSITIVE_INFINITY,
+    firstSeen: Number.POSITIVE_INFINITY,
+  }))
+
+  let scanOrder = 0
+  matchedHistory.forEach((row, rowIndex) => {
+    const digits = rowDigits(row)
+    const present = new Set()
+
+    digits.forEach((digit) => {
+      const item = stats[digit]
+      item.occurrences += 1
+      present.add(digit)
+      if (!Number.isFinite(item.latestMatchIndex)) item.latestMatchIndex = rowIndex
+      if (!Number.isFinite(item.firstSeen)) item.firstSeen = scanOrder
+      scanOrder += 1
+    })
+
+    present.forEach((digit) => { stats[digit].drawHits += 1 })
+  })
+
+  return stats
+    .filter((item) => item.occurrences > 0)
+    .sort((left, right) =>
+      right.occurrences - left.occurrences ||
+      left.latestMatchIndex - right.latestMatchIndex ||
+      left.firstSeen - right.firstSeen ||
+      left.digit - right.digit,
+    )
+    .map((item, index) => ({ ...item, rank: index + 1 }))
+}
+
+export function buildHistoryWin6(fgDigits, ranking) {
+  const win6 = []
+
+  fgDigits.forEach((digit) => {
+    if (!win6.includes(digit)) win6.push(digit)
+  })
+
+  ranking.forEach((item) => {
+    if (win6.length < 6 && !win6.includes(item.digit)) win6.push(item.digit)
+  })
+
+  if (win6.length < 6) {
+    throw new Error(`ข้อมูลย้อนหลังที่มี FG ครบ ให้เลขไม่ซ้ำเพียง ${win6.length} ตัว จึงยังสร้าง WIN6 ไม่ได้`)
+  }
+
+  const seventh = ranking.find((item) => !win6.includes(item.digit))?.digit ?? null
+  return { win6, seventh }
+}
+
+function pairStats(a, b, matchedHistory) {
+  let drawHits = 0
+  let occurrences = 0
+  matchedHistory.forEach((row) => {
+    const digits = rowDigits(row)
+    const present = new Set(digits)
+    if (present.has(a) && present.has(b)) drawHits += 1
+    occurrences += digits.filter((digit) => digit === a || digit === b).length
+  })
+  return { formulaHits: drawHits, occurrences }
+}
+
+function tripleStats(digits, matchedHistory) {
+  let drawHits = 0
+  let occurrences = 0
+  matchedHistory.forEach((row) => {
+    const rowValues = rowDigits(row)
+    const present = new Set(rowValues)
+    if (digits.every((digit) => present.has(digit))) drawHits += 1
+    occurrences += rowValues.filter((digit) => digits.includes(digit)).length
+  })
+  return { formulaHits: drawHits, occurrences }
+}
+
+export function buildPin2(fgDigits, win6, seventh, matchedHistory) {
+  const pool = unique([...win6, seventh].filter((digit) => digit !== null && digit !== undefined))
+  const anchors = unique(fgDigits)
   const candidates = []
+  const seen = new Set()
+  let sourceOrder = 0
 
-  for (let a = 0; a <= 7; a += 1) {
-    for (let b = a + 1; b <= 8; b += 1) {
-      for (let c = b + 1; c <= 9; c += 1) {
-        const digits = [a, b, c]
-        const pairs = [canonicalPair(a, b), canonicalPair(a, c), canonicalPair(b, c)]
-          .map((pair) => pairMap.get(pair))
-          .filter(Boolean)
+  function add(a, b) {
+    if (a === b) return
+    const pair = `${a}${b}`
+    if (seen.has(pair)) return
+    seen.add(pair)
+    candidates.push({ pair, digits: [a, b], sourceOrder, ...pairStats(a, b, matchedHistory) })
+    sourceOrder += 1
+  }
 
-        if (pairs.length < 2) continue
+  if (fgDigits[0] !== fgDigits[1]) add(fgDigits[0], fgDigits[1])
+  anchors.forEach((anchor) => { pool.forEach((digit) => add(anchor, digit)) })
 
-        const pairScore = pairs.reduce((sum, item) => sum + item.score, 0)
-        const formulaHits = pairs.reduce((sum, item) => sum + item.formulaHits, 0)
-        const occurrences = pairs.reduce((sum, item) => sum + item.occurrences, 0)
-        const strongCount = digits.filter((digit) => strong.has(digit)).length
-        const rankingScore = digits.reduce((sum, digit) => sum + byDigit.get(digit).score, 0)
-        const seventhBonus = digits.includes(seventh) ? 10 : 0
-        const score =
-          pairScore +
-          formulaHits * 4 +
-          strongCount * 18 +
-          seventhBonus +
-          rankingScore
+  return candidates
+    .sort((left, right) =>
+      right.formulaHits - left.formulaHits ||
+      right.occurrences - left.occurrences ||
+      left.sourceOrder - right.sourceOrder,
+    )
+    .slice(0, 5)
+}
 
+export function buildPin3(fgDigits, win6, seventh, matchedHistory, ranking) {
+  const pool = unique([...win6, seventh].filter((digit) => digit !== null && digit !== undefined))
+  const fgSet = new Set(fgDigits)
+  const frequency = new Map(ranking.map((item) => [item.digit, item.occurrences]))
+  const candidates = []
+  let sourceOrder = 0
+
+  for (let a = 0; a < pool.length - 2; a += 1) {
+    for (let b = a + 1; b < pool.length - 1; b += 1) {
+      for (let c = b + 1; c < pool.length; c += 1) {
+        const digits = [pool[a], pool[b], pool[c]]
+        const fgHits = digits.filter((digit) => fgSet.has(digit)).length
+        const rankingScore = digits.reduce((sum, digit) => sum + (frequency.get(digit) || 0), 0)
         candidates.push({
           triple: digits.join(''),
           digits,
-          pairHits: pairs.length,
-          formulaHits,
-          occurrences,
-          strongCount,
+          fgHits,
           rankingScore,
-          seventhBonus,
-          score,
+          sourceOrder,
+          ...tripleStats(digits, matchedHistory),
         })
+        sourceOrder += 1
       }
     }
   }
 
   return candidates.sort((left, right) =>
-    right.score - left.score ||
+    right.fgHits - left.fgHits ||
     right.formulaHits - left.formulaHits ||
+    right.rankingScore - left.rankingScore ||
     right.occurrences - left.occurrences ||
-    left.triple.localeCompare(right.triple),
+    left.sourceOrder - right.sourceOrder,
   )
 }
 
-export function detectPatterns(formulaResults) {
+export function detectHistoryPatterns(matchedHistory) {
   const doubles = []
   const triples = []
   const siblings = []
 
-  formulaResults.forEach((result) => {
-    const digits = String(result)
+  matchedHistory.forEach((row) => {
+    const top = row.top3.split('').map(Number)
+    const all = rowDigits(row)
 
-    for (let index = 0; index < digits.length - 1; index += 1) {
-      const left = digits[index]
-      const right = digits[index + 1]
-
-      if (left === right) {
-        const value = `${left}${right}`
-        if (!doubles.includes(value)) doubles.push(value)
-      }
-
-      if (Math.abs(Number(left) - Number(right)) === 1) {
-        const value = canonicalPair(Number(left), Number(right))
-        if (!siblings.includes(value)) siblings.push(value)
-      }
+    if (top[0] === top[1]) {
+      const value = `${top[0]}${top[1]}`
+      if (!doubles.includes(value)) doubles.push(value)
+    }
+    if (top[1] === top[2]) {
+      const value = `${top[1]}${top[2]}`
+      if (!doubles.includes(value)) doubles.push(value)
+    }
+    if (top[0] === top[1] && top[1] === top[2]) {
+      const value = row.top3
+      if (!triples.includes(value)) triples.push(value)
     }
 
-    for (let index = 0; index < digits.length - 2; index += 1) {
-      if (digits[index] === digits[index + 1] && digits[index] === digits[index + 2]) {
-        const value = digits[index].repeat(3)
-        if (!triples.includes(value)) triples.push(value)
-      }
+    for (let index = 0; index < all.length - 1; index += 1) {
+      if (!siblingPair(all[index], all[index + 1])) continue
+      const value = canonicalPair(all[index], all[index + 1])
+      if (!siblings.includes(value)) siblings.push(value)
     }
   })
 
@@ -303,29 +375,51 @@ export function analyzePercentCore(source, bottom2) {
   const bottom = String(input.bottom2 ?? '')
   validateInput(top3, bottom)
 
-  const formulaResults = calculateFormulaResults(top3, bottom)
-  const ranking = rankDigits(formulaResults)
-  const strong = ranking.slice(0, 2).map((item) => item.digit)
-  const secondary = ranking.slice(2, 4).map((item) => item.digit)
-  const mod10Pairs = scoreMod10Pairs(ranking)
-  const { win6, seventh, keyPairs } = buildWin6(ranking, mod10Pairs)
-  const pairCollisions = analyzePairCollision(formulaResults, ranking, strong, seventh)
-  const pin2 = pairCollisions.slice(0, 5)
-  const pin3Candidates = buildPin3(pairCollisions, ranking, strong, seventh)
-  const patterns = detectPatterns(formulaResults)
+  const hasHistoryField = Array.isArray(input.history)
+  if (!hasHistoryField) {
+    return analyzeLegacyPercentCompatibility(input, top3, bottom)
+  }
+
+  const history = input.history.map(normalizeRow).filter(Boolean)
+  if (!history.length) {
+    throw new Error('สูตร FG ต้องมีข้อมูลย้อนหลังเพื่อค้นหางวดที่มี F และ G อยู่พร้อมกัน')
+  }
+
+  const { f, g, digits: fg } = calculateFG(top3, bottom)
+  const matchedHistory = matchHistoryByFG(history, f, g)
+
+  if (!matchedHistory.length) {
+    throw new Error(`ไม่พบงวดย้อนหลังที่มี FG ${f}${g} อยู่พร้อมกันในชุด 3 บน + 2 ล่าง`)
+  }
+
+  const ranking = rankMatchedDigits(matchedHistory)
+  const { win6, seventh } = buildHistoryWin6(fg, ranking)
+  const strong = unique(fg)
+  const secondary = ranking
+    .map((item) => item.digit)
+    .filter((digit) => !strong.includes(digit))
+    .slice(0, 2)
+  const pin2 = buildPin2(fg, win6, seventh, matchedHistory)
+  const pin3Candidates = buildPin3(fg, win6, seventh, matchedHistory, ranking)
+  const patterns = detectHistoryPatterns(matchedHistory)
+  const { history: _history, ...sourceWithoutHistory } = input
 
   return {
-    engine: 'PERCENT CORE — Equal Weight + Strong Lock + MOD10 + Pair Collision',
-    source: { ...input, top3, bottom2: bottom },
-    formulaResults,
+    engine: 'FG HISTORY CORE — MOD10 + MATCH FREQUENCY',
+    source: { ...sourceWithoutHistory, top3, bottom2: bottom },
+    fg,
+    f,
+    g,
+    matchCount: matchedHistory.length,
+    matchedHistory,
     ranking,
     strong,
     secondary,
-    mod10Pairs,
     win6,
     seventh,
-    keyPairs,
-    pairCollisions,
+    keyPairs: [`${f}${g}`],
+    mod10Pairs: [],
+    pairCollisions: pin2,
     pin2,
     pin3: pin3Candidates.slice(0, 3),
     pin3Extra: pin3Candidates.slice(3, 5),
