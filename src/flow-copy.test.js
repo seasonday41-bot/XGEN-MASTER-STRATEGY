@@ -3,12 +3,12 @@ import { analyzeFlowCore } from './flow-core.js'
 import { formatFlowCopyText } from './flow-copy.js'
 
 const history = [
-  { draw_date: '2026-08-18', top3: '968', bottom2: '93' },
-  { draw_date: '2026-08-17', top3: '112', bottom2: '01' },
-  { draw_date: '2026-08-16', top3: '272', bottom2: '39' },
+  { draw_date: '2026-08-14', top3: '118', bottom2: '01' },
+  { draw_date: '2026-08-13', top3: '843', bottom2: '51' },
+  { draw_date: '2026-08-12', top3: '734', bottom2: '27' },
 ]
 
-describe('FLOW CORE copy', () => {
+describe('FLOW × PERCENT copy', () => {
   it('คัดลอกเฉพาะผลล่าสุด รูด WIN6 เจาะ 2 และเจาะ 3', () => {
     const result = {
       marketName: 'ลาว Extra',
@@ -17,14 +17,14 @@ describe('FLOW CORE copy', () => {
 
     expect(formatFlowCopyText(result)).toBe([
       '🏷️ ตลาด ลาว Extra',
-      '📊 ผลล่าสุด 968-93',
+      '📊 ผลล่าสุด 118-01',
       '',
-      '⚡ รูด 2 • 4',
-      '✨ WIN6 2 • 4 • 3 • 1 • 9 • 6',
+      '⚡ รูด 9 • 7',
+      '✨ WIN6 0 • 3 • 4 • 6 • 2 • 8',
       '',
-      '🎯 เจาะ 2 24 • 23 • 21 • 43 • 41',
-      '🎯 เจาะ 3 243 • 241 • 249',
-      '⭐ เจาะ 3 เสริม 246 • 239',
+      '🎯 เจาะ 2 97 • 90 • 93 • 70 • 73',
+      '🎯 เจาะ 3 970 • 973 • 974',
+      '⭐ เจาะ 3 เสริม 976 • 904',
     ].join('\n'))
   })
 })
