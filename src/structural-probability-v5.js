@@ -4,6 +4,7 @@ import { classifyStructuralPatternV2 } from './structural-probability-v2.js'
 const DIGITS = Array.from({ length: 10 }, (_, digit) => digit)
 const FREQUENCY_WINDOW = 5
 const FREQUENCY_WEIGHTS = { 5: 1 }
+const POSITION_GATE_SIZE = 6
 
 const avg = (values) => {
   const usable = values.filter((value) => Number.isFinite(value))
@@ -46,8 +47,7 @@ function normalizeScore(values) {
 
 function fiveDrawFrequencyScore(history, scope) {
   const recent = history.slice(0, Math.min(FREQUENCY_WINDOW, history.length))
-  const counts = countDigits(recent, scope)
-  return normalizeScore(counts)
+  return normalizeScore(countDigits(recent, scope))
 }
 
 function trendEvidence(history, scope, gapByDigit) {
@@ -196,6 +196,82 @@ function weightedPositionScores(matches, selector, position) {
   return normalizeScore(values)
 }
 
+function positionSelector(scope) {
+  return scope === 'top' ? (draw) => draw.top3 : (draw) => draw.bottom2
+}
+
+function countPositionDigits(draws, scope, position) {
+  const selector = positionSelector(scope)
+  const counts = Array(10).fill(0)
+  draws.forEach((draw) => { counts[Number(selector(draw)[position])] += 1 })
+  return counts
+}
+
+function positionGap(history, scope, position, digit) {
+  const selector = positionSelector(scope)
+  const index = history.findIndex((draw) => Number(selector(draw)[position]) === digit)
+  return index === -1 ? history.length : index
+}
+
+function positionGateRanking(history, scope, position, transition, mirror) {
+  const selector = positionSelector(scope)
+  const recent = history.slice(0, Math.min(5, history.length))
+  const previous = history.slice(5, Math.min(10, history.length))
+  const older = history.slice(5)
+  const recentCounts = countPositionDigits(recent, scope, position)
+  const previousCounts = countPositionDigits(previous, scope, position)
+  const olderCounts = countPositionDigits(older, scope, position)
+  const frequency = normalizeScore(recentCounts)
+  const gaps = DIGITS.map((digit) => positionGap(history, scope, position, digit))
+  const missing = normalizeScore(gaps)
+  const rawTrend = DIGITS.map((digit) => {
+    const recentRate = recent.length ? recentCounts[digit] / recent.length : 0
+    const olderRate = older.length ? olderCounts[digit] / older.length : 0
+    return (recentRate * 0.7) + (Math.max(0, recentRate - olderRate) * 0.3)
+  })
+  const trend = normalizeScore(rawTrend)
+  const transitionScore = weightedPositionScores(transition, selector, position)
+  const mirrorScore = weightedPositionScores(mirror, selector, position)
+
+  return DIGITS.map((digit) => {
+    const evidence = [missing[digit], frequency[digit], trend[digit]]
+    if (transitionScore[digit] !== null) evidence.push(transitionScore[digit])
+    if (mirrorScore[digit] !== null) evidence.push(mirrorScore[digit])
+    return {
+      digit,
+      score: Math.round(clamp(avg(evidence))),
+      gap: gaps[digit],
+      trendScore: trend[digit],
+      components: {
+        missing: missing[digit],
+        frequency: frequency[digit],
+        trend: trend[digit],
+        transition: transitionScore[digit],
+        mirror: mirrorScore[digit],
+      },
+      recent5Count: recentCounts[digit],
+      previous5Count: previousCounts[digit],
+    }
+  }).sort((a, b) => b.score - a.score || b.trendScore - a.trendScore || b.gap - a.gap || a.digit - b.digit)
+}
+
+function buildPositionGates(history, transition, mirror) {
+  const top = [0, 1, 2].map((position) => positionGateRanking(history, 'top', position, transition, mirror))
+  const bottom = [0, 1].map((position) => positionGateRanking(history, 'bottom', position, transition, mirror))
+  const take = (ranking) => ranking.slice(0, POSITION_GATE_SIZE).map((item) => item.digit)
+
+  return {
+    rankings: {
+      top: { hundreds: top[0], tens: top[1], units: top[2] },
+      bottom: { tens: bottom[0], units: bottom[1] },
+    },
+    gates: {
+      top: { hundreds: take(top[0]), tens: take(top[1]), units: take(top[2]) },
+      bottom: { tens: take(bottom[0]), units: take(bottom[1]) },
+    },
+  }
+}
+
 function canonical(value) {
   return String(value).split('').sort().join('')
 }
@@ -210,7 +286,7 @@ function bestUnique(items, keyName) {
   return [...best.values()].sort((a, b) => b.score - a.score || a[keyName].localeCompare(b[keyName])).slice(0, 5)
 }
 
-function buildPairRanking(win6, scopeRanking, transition, mirror, scope) {
+function buildPairRanking(leftGate, rightGate, scopeRanking, transition, mirror, scope) {
   const rankMap = new Map(scopeRanking.map((item) => [item.digit, item.score]))
   const selector = scope === 'top' ? (draw) => draw.top3.slice(1) : (draw) => draw.bottom2
   const positionSets = [transition, mirror].map((matches) => [
@@ -219,7 +295,7 @@ function buildPairRanking(win6, scopeRanking, transition, mirror, scope) {
   ])
   const pairs = []
 
-  win6.forEach((left) => win6.forEach((right) => {
+  leftGate.forEach((left) => rightGate.forEach((right) => {
     if (left === right) return
     const evidence = [rankMap.get(left), rankMap.get(right)]
     positionSets.forEach(([tens, units]) => {
@@ -232,19 +308,29 @@ function buildPairRanking(win6, scopeRanking, transition, mirror, scope) {
   return bestUnique(pairs, 'pair')
 }
 
-function buildTripleRanking(win6, topRanking, type, transition, mirror) {
+function buildTripleRanking(positionGates, topRanking, type, transition, mirror) {
   const rankMap = new Map(topRanking.map((item) => [item.digit, item.score]))
   const matches = [...transition, ...mirror]
   const pos = [0, 1, 2].map((position) => weightedPositionScores(matches, (draw) => draw.top3, position))
+  const [hundreds, tens, units] = positionGates
   const triples = new Set()
 
   if (type === 'DOUBLE') {
-    win6.forEach((a) => win6.filter((b) => b !== a).forEach((b) => {
-      triples.add(`${a}${a}${b}`)
-      triples.add(`${b}${a}${a}`)
-    }))
+    const tensSet = new Set(tens)
+    const unitsSet = new Set(units)
+
+    hundreds.forEach((a) => {
+      if (tensSet.has(a)) {
+        units.forEach((b) => {
+          if (b !== a) triples.add(`${a}${a}${b}`)
+        })
+      }
+      tens.forEach((b) => {
+        if (b !== a && unitsSet.has(b)) triples.add(`${a}${b}${b}`)
+      })
+    })
   } else {
-    for (const a of win6) for (const b of win6) for (const c of win6) {
+    for (const a of hundreds) for (const b of tens) for (const c of units) {
       if (new Set([a, b, c]).size === 3) triples.add(`${a}${b}${c}`)
     }
   }
@@ -344,17 +430,29 @@ export function analyzeStructuralProbabilityV5(history, { includeBacktest = true
   const rud = fusionRanking.slice(0, 2).map((item) => item.digit)
   const transition = transitionMatches(capped)
   const mirror = mirrorMatches(capped)
-  const pin2Top = buildPairRanking(topWin6, topRanking, transition, mirror, 'top')
-  const pin2Bottom = buildPairRanking(bottomWin6, bottomRanking, transition, mirror, 'bottom')
-  const pin3Normal = buildTripleRanking(topWin6, topRanking, 'NORMAL', transition, mirror)
-  const pin3Double = buildTripleRanking(topWin6, topRanking, 'DOUBLE', transition, mirror)
+  const position = buildPositionGates(capped, transition, mirror)
+  const pin2Top = buildPairRanking(position.gates.top.tens, position.gates.top.units, topRanking, transition, mirror, 'top')
+  const pin2Bottom = buildPairRanking(position.gates.bottom.tens, position.gates.bottom.units, bottomRanking, transition, mirror, 'bottom')
+  const pin3Normal = buildTripleRanking([
+    position.gates.top.hundreds,
+    position.gates.top.tens,
+    position.gates.top.units,
+  ], topRanking, 'NORMAL', transition, mirror)
+  const pin3Double = buildTripleRanking([
+    position.gates.top.hundreds,
+    position.gates.top.tens,
+    position.gates.top.units,
+  ], topRanking, 'DOUBLE', transition, mirror)
   const adaptiveBacktest = includeBacktest ? walkForwardAdaptive(capped, maxBacktest) : null
 
   return {
     ...base,
-    version: 'v5.1-frequency-5-only',
+    version: 'v5.2-position-candidate-gate',
     frequencyWindow: FREQUENCY_WINDOW,
     frequencyWeights: { ...FREQUENCY_WEIGHTS },
+    positionGateSize: POSITION_GATE_SIZE,
+    positionGates: position.gates,
+    positionRankings: position.rankings,
     rankings: { top: topRanking, bottom: bottomRanking, all: allRanking, fusion: fusionRanking },
     marketPulse: marketPulse(allRanking),
     rud,
