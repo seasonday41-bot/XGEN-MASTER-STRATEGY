@@ -49,7 +49,7 @@ const chinaAfternoon = [
 
 const canonical = (value) => String(value).split('').sort().join('')
 
-describe('STRUCTURAL v5.2 position candidate gate', () => {
+describe('STRUCTURAL v5.4 matrix challenger', () => {
   it('uses only the latest five draws for frequency', () => {
     const result = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
     expect(result.frequencyWindow).toBe(5)
@@ -74,7 +74,7 @@ describe('STRUCTURAL v5.2 position candidate gate', () => {
 
   it('builds six-digit gates independently for every number position', () => {
     const result = analyzeStructuralProbabilityV5(chinaAfternoon, { includeBacktest: false })
-    expect(result.version).toBe('v5.2-position-candidate-gate')
+    expect(result.version).toBe('v5.4-matrix-challenger')
     expect(result.positionGateSize).toBe(6)
     expect(result.positionGates.top.hundreds).toHaveLength(6)
     expect(result.positionGates.top.tens).toHaveLength(6)
@@ -92,7 +92,7 @@ describe('STRUCTURAL v5.2 position candidate gate', () => {
     expect(result.positionGates.bottom.units).toContain(5)
   })
 
-  it('only creates final picks from digits allowed by each position gate', () => {
+  it('only creates champion picks from digits allowed by each position gate', () => {
     const result = analyzeStructuralProbabilityV5(chinaAfternoon, { includeBacktest: false })
     const topTens = new Set(result.positionGates.top.tens)
     const topUnits = new Set(result.positionGates.top.units)
@@ -115,6 +115,46 @@ describe('STRUCTURAL v5.2 position candidate gate', () => {
     })
   })
 
+  it('builds matrix challenger without hard locks', () => {
+    const result = analyzeStructuralProbabilityV5(chinaAfternoon, { includeBacktest: false })
+    const matrix = result.matrixChallenger
+    expect(matrix.version).toBe('matrix-v1-adaptive-score')
+    expect(matrix.policy).toBe('SCORE_ONLY_NO_HARD_LOCK')
+    expect(matrix.pin2Top.length).toBeGreaterThan(0)
+    expect(matrix.pin2Bottom.length).toBeGreaterThan(0)
+    expect(matrix.pin3Normal.length).toBeGreaterThan(0)
+    expect(matrix.pin3Ham.length).toBeGreaterThan(0)
+    expect(matrix.pin3Double.length).toBeGreaterThan(0)
+    expect(matrix.pin2Top.length).toBeLessThanOrEqual(5)
+    expect(matrix.pin3Normal.length).toBeLessThanOrEqual(5)
+  })
+
+  it('matrix scores expose position, missing, polarity/gap and shape evidence', () => {
+    const result = analyzeStructuralProbabilityV5(chinaAfternoon, { includeBacktest: false })
+    const pair = result.matrixChallenger.pin2Top[0]
+    const triple = result.matrixChallenger.pin3Normal[0]
+    expect(Object.keys(pair.components)).toEqual(['position', 'missing', 'polarity', 'gap'])
+    expect(Object.keys(triple.components)).toEqual(['position', 'shape', 'transition', 'step'])
+    Object.values(pair.components).forEach((value) => expect(Number.isFinite(value)).toBe(true))
+    Object.values(triple.components).forEach((value) => expect(Number.isFinite(value)).toBe(true))
+  })
+
+  it('keeps no-reverse pick policy for champion and challenger', () => {
+    const result = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
+    const lists = [
+      result.pin2Top.map((item) => item.pair),
+      result.pin2Bottom.map((item) => item.pair),
+      result.pin3Normal.map((item) => item.triple),
+      result.pin3Double.map((item) => item.triple),
+      result.matrixChallenger.pin2Top.map((item) => item.pair),
+      result.matrixChallenger.pin2Bottom.map((item) => item.pair),
+      result.matrixChallenger.pin3Normal.map((item) => item.triple),
+      result.matrixChallenger.pin3Ham.map((item) => item.triple),
+      result.matrixChallenger.pin3Double.map((item) => item.triple),
+    ]
+    lists.forEach((items) => expect(new Set(items.map(canonical)).size).toBe(items.length))
+  })
+
   it('classifies all digits into market pulse states', () => {
     const result = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
     expect(Object.keys(result.marketPulse)).toEqual(['HOT', 'RETURNING', 'WARM', 'COLD'])
@@ -122,20 +162,23 @@ describe('STRUCTURAL v5.2 position candidate gate', () => {
     expect(new Set(digits).size).toBe(10)
   })
 
-  it('keeps no-reverse pick policy', () => {
-    const result = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
-    expect(new Set(result.pin2Top.map((item) => canonical(item.pair))).size).toBe(result.pin2Top.length)
-    expect(new Set(result.pin2Bottom.map((item) => canonical(item.pair))).size).toBe(result.pin2Bottom.length)
-    expect(new Set(result.pin3Normal.map((item) => canonical(item.triple))).size).toBe(result.pin3Normal.length)
-    expect(new Set(result.pin3Double.map((item) => canonical(item.triple))).size).toBe(result.pin3Double.length)
-  })
-
-  it('runs 10-draw walk-forward when enough history exists', () => {
+  it('runs same-sample walk-forward for champion and matrix challenger', () => {
     const result = analyzeStructuralProbabilityV5(history, { includeBacktest: true, maxBacktest: 10 })
     expect(result.backtest.samples).toBe(10)
-    expect(result.backtest.metrics.rudTop).toBeGreaterThanOrEqual(0)
-    expect(result.backtest.metrics.rudTop).toBeLessThanOrEqual(100)
-    expect(result.backtest.metrics.pin3NormalPermutation).toBeGreaterThanOrEqual(0)
-    expect(result.backtest.metrics.pin3NormalPermutation).toBeLessThanOrEqual(100)
+    const keys = [
+      'pin2TopPair',
+      'pin2BottomPair',
+      'pin3NormalPermutation',
+      'pin3DoublePermutation',
+      'matrixPin2TopPair',
+      'matrixPin2BottomPair',
+      'matrixPin3NormalPermutation',
+      'matrixPin3HamPermutation',
+      'matrixPin3DoublePermutation',
+    ]
+    keys.forEach((key) => {
+      expect(result.backtest.metrics[key]).toBeGreaterThanOrEqual(0)
+      expect(result.backtest.metrics[key]).toBeLessThanOrEqual(100)
+    })
   })
 })
