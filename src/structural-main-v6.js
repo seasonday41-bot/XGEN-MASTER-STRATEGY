@@ -11,8 +11,8 @@ app.innerHTML = `
     <header class="struct-hero">
       <div>
         <p class="struct-kicker">XGEN • STRUCTURAL PATTERN CORE</p>
-        <h1>Xgen <em>WIN6 PATTERN</em></h1>
-        <p>Frequency 5 งวด • WIN6 • Pattern • Position • Walk-forward</p>
+        <h1>Xgen <em>WIN6 MOD0</em></h1>
+        <p>Frequency 5 งวด • MOD0 • Pattern • Position • Walk-forward</p>
       </div>
       <span class="struct-badge">NO RANDOM</span>
     </header>
@@ -48,17 +48,23 @@ app.innerHTML = `
       </article>
 
       <article class="struct-card accent">
-        <div class="struct-card-head"><small>✨ WIN6 ฐานคัดเจาะ</small><span>ชุดจาก Ranking เดิม</span></div>
+        <div class="struct-card-head"><small>✨ WIN6 MOD0 หลัก</small><span id="mod0PrimaryMeta">—</span></div>
         <div id="win6" class="struct-big-digits"></div>
+        <div class="pattern-evidence"><span>เลือกจาก Ranking โดย <b>เปลี่ยนน้อยที่สุด</b> แล้วบังคับผลรวม MOD10 = 0</span></div>
+      </article>
+
+      <article class="struct-card pattern-card">
+        <div class="struct-card-head"><small>🛟 WIN6 MOD0 สำรอง</small><span id="mod0ReserveMeta">—</span></div>
+        <div id="win6Reserve" class="struct-big-digits"></div>
       </article>
 
       <article class="struct-card">
-        <div class="struct-card-head"><small>🎯 เจาะ 2 บน</small><span>คัดจาก WIN6 • Position</span></div>
+        <div class="struct-card-head"><small>🎯 เจาะ 2 บน</small><span>คัดจาก MOD0 หลัก • Position</span></div>
         <div id="pin2Top" class="struct-picks"></div>
       </article>
 
       <article class="struct-card">
-        <div class="struct-card-head"><small>🎯 เจาะ 2 ล่าง</small><span>คัดจาก WIN6 • Position</span></div>
+        <div class="struct-card-head"><small>🎯 เจาะ 2 ล่าง</small><span>คัดจาก MOD0 หลัก • Position</span></div>
         <div id="pin2Bottom" class="struct-picks"></div>
       </article>
 
@@ -70,7 +76,7 @@ app.innerHTML = `
       <article class="struct-card pattern-card">
         <div class="struct-card-head"><small id="pin3Title">🔮 เจาะ 3 ตาม Pattern</small><span id="pin3PatternMeta">—</span></div>
         <div id="pin3Pattern" class="struct-picks triples"></div>
-        <div class="pattern-evidence"><span>สร้างเฉพาะจากเลขใน <b>WIN6</b> แล้วคัดรูปทรงตาม Pattern</span></div>
+        <div class="pattern-evidence"><span>สร้างเฉพาะจาก <b>WIN6 MOD0 หลัก</b> แล้วคัดรูปทรงตาม Pattern</span></div>
       </article>
 
       <div class="struct-grid two">
@@ -79,21 +85,21 @@ app.innerHTML = `
           <div id="evidence" class="struct-evidence"></div>
         </article>
         <article class="struct-card">
-          <small>📈 Walk-forward</small>
+          <small>📈 Walk-forward • WIN6 เดิม vs MOD0</small>
           <div id="backtest" class="struct-backtest"></div>
         </article>
       </div>
 
       <button id="copy" class="struct-copy" type="button">คัดลอกชุด</button>
-      <p class="struct-note">WIN6 เป็นฐานเดียวของชุดเจาะ • เจาะ 3 ใช้ Pattern ที่ระบบจัดอันดับได้ • เจาะ 2 ใช้ WIN6 ร่วมกับคะแนนตำแหน่ง • Frequency ใช้เฉพาะ 5 งวดล่าสุด</p>
+      <p class="struct-note">Flow: Ranking → WIN6 MOD0 หลัก/สำรอง → Pattern → เจาะ • ชุดเจาะใช้ MOD0 หลักเป็นฐาน • Walk-forward เปรียบเทียบ WIN6 เดิมกับ MOD0 แบบไม่ดูผลอนาคต</p>
     </section>
   </main>
 `
 
 const els = Object.fromEntries([
   'marketSearch', 'market', 'refresh', 'status', 'result', 'marketName', 'sourceTop', 'sourceBottom', 'sampleSize',
-  'patternForecast', 'patternSignals', 'patternEvidence', 'rud', 'win6', 'pin2Top', 'pin2Bottom', 'pin2Double',
-  'pin3Title', 'pin3PatternMeta', 'pin3Pattern', 'evidence', 'backtest', 'copy',
+  'patternForecast', 'patternSignals', 'patternEvidence', 'rud', 'win6', 'win6Reserve', 'mod0PrimaryMeta', 'mod0ReserveMeta',
+  'pin2Top', 'pin2Bottom', 'pin2Double', 'pin3Title', 'pin3PatternMeta', 'pin3Pattern', 'evidence', 'backtest', 'copy',
 ].map((id) => [id, document.querySelector(`#${id}`)]))
 
 const PATTERN_LABELS = {
@@ -126,7 +132,7 @@ function renderMarketOptions(query = '') {
 }
 
 function renderDigits(target, digits) {
-  target.innerHTML = digits.map((digit) => `<b class="hot">${digit}</b>`).join('')
+  target.innerHTML = (digits || []).map((digit) => `<b class="hot">${digit}</b>`).join('')
 }
 
 function renderPicks(target, items, key) {
@@ -156,7 +162,7 @@ function renderPatterns(analysis) {
   `).join('')
   els.patternEvidence.innerHTML = `<span>Pattern ที่ใช้คัดเจาะ 3: <b>${label}</b> • ${selected.source === 'FORECAST' ? 'Forecast' : 'อันดับสัญญาณ'}</span>`
   els.pin3Title.textContent = `🔮 เจาะ 3 • ${label}`
-  els.pin3PatternMeta.textContent = `${selected.score ?? 0}% • จาก WIN6`
+  els.pin3PatternMeta.textContent = `${selected.score ?? 0}% • จาก MOD0 หลัก`
 }
 
 function renderEvidence(analysis) {
@@ -168,11 +174,17 @@ function renderEvidence(analysis) {
     <p><b>สูง/ต่ำล่าง</b><span>${p.bottomHighLow}</span></p>
     <p><b>Transition</b><span>${analysis.transition.samples} sample</span></p>
     <p><b>Mirror</b><span>${analysis.mirror.samples} sample</span></p>
+    <p><b>WIN6 ฐานเดิม</b><span>${analysis.baseWin6.join(' • ')}</span></p>
   `
 }
 
 function metric(label, value, samples) {
   return `<p><b>${label}</b><span>${value ?? 0}% • ${samples} งวด</span></p>`
+}
+
+function coverage(label, dist, samples) {
+  if (!dist) return ''
+  return `<p><b>${label}</b><span>3/3 ${dist[3] || 0} • 2/3 ${dist[2] || 0} • 1/3 ${dist[1] || 0} • 0/3 ${dist[0] || 0} จาก ${samples}</span></p>`
 }
 
 function renderBacktest(backtest) {
@@ -181,9 +193,13 @@ function renderBacktest(backtest) {
     return
   }
   const m = backtest.metrics
+  const c = backtest.topCoverage
   els.backtest.innerHTML = [
-    metric('WIN6 ครบ 3 บน', m.win6TopFull, backtest.samples),
-    metric('WIN6 ครบ 2 ล่าง', m.win6BottomFull, backtest.samples),
+    coverage('WIN6 เดิม', c?.base, backtest.samples),
+    coverage('MOD0 หลัก', c?.mod0Primary, backtest.samples),
+    coverage('MOD0 หลัก+สำรอง', c?.mod0Either, backtest.samples),
+    metric('MOD0 หลัก เข้า 3/3', m.mod0Top3, backtest.samples),
+    metric('MOD0 หลัก/สำรอง เข้า 3/3', m.mod0EitherTop3, backtest.samples),
     metric('เจาะ 2 บน', m.pin2TopPair, backtest.samples),
     metric('เจาะ 2 ล่าง', m.pin2BottomPair, backtest.samples),
     metric('เจาะ 3 ตาม Pattern', m.pin3PatternPermutation, backtest.samples),
@@ -200,6 +216,11 @@ function renderResult(marketName, analysis) {
   renderPatterns(analysis)
   renderDigits(els.rud, analysis.rud)
   renderDigits(els.win6, analysis.win6)
+  renderDigits(els.win6Reserve, analysis.win6Mod0Reserve)
+  els.mod0PrimaryMeta.textContent = `รวม ${analysis.mod0.primary.sum} • MOD${analysis.mod0.primary.mod} • เปลี่ยน ${analysis.mod0.primary.replacements} ตัว`
+  els.mod0ReserveMeta.textContent = analysis.mod0.reserve
+    ? `รวม ${analysis.mod0.reserve.sum} • MOD${analysis.mod0.reserve.mod} • เปลี่ยน ${analysis.mod0.reserve.replacements} ตัว`
+    : 'ไม่มีชุดสำรอง'
   renderPicks(els.pin2Top, analysis.pin2Top, 'pair')
   renderPicks(els.pin2Bottom, analysis.pin2Bottom, 'pair')
   renderPicks(els.pin2Double, twoDigitDoubles(analysis), 'pair')
@@ -215,13 +236,13 @@ async function calculate() {
   const selected = markets.find((item) => item.market_key === marketKey)
   els.market.disabled = true
   els.refresh.disabled = true
-  setStatus('กำลังคำนวณ WIN6 และคัดเจาะตาม Pattern...', 'loading')
+  setStatus('กำลังคำนวณ WIN6 MOD0 และคัดเจาะตาม Pattern...', 'loading')
 
   try {
     const history = await loadRecentResults(marketKey, 30)
     const analysis = analyzeStructuralProbabilityV6(history, { includeBacktest: true, maxBacktest: 10 })
     renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • WIN6 + Pattern • Frequency ${analysis.frequencyWindow} งวด • v6.0`, 'ready')
+    setStatus(`พร้อม • WIN6 MOD0 + Pattern • Frequency ${analysis.frequencyWindow} งวด • v6.1`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'คำนวณไม่สำเร็จ', 'error')
@@ -239,7 +260,8 @@ function copyText() {
     `${current.source.top3}-${current.source.bottom2}`,
     '',
     `🔥 ตัวเด่น / รูด: ${current.rud.join(' • ')}`,
-    `✨ WIN6: ${current.win6.join(' • ')}`,
+    `✨ WIN6 MOD0: ${current.win6.join(' • ')} (รวม ${current.mod0.primary.sum})`,
+    `🛟 สำรอง MOD0: ${current.win6Mod0Reserve.join(' • ')}${current.mod0.reserve ? ` (รวม ${current.mod0.reserve.sum})` : ''}`,
     `🚨 Pattern: ${pattern} ${current.pickPattern.score ?? 0}% • ${current.pickPattern.status || '—'}`,
     '',
     `🎯 เจาะ 2 บน: ${current.pin2Top.map((item) => item.pair).join(' • ')}`,
@@ -259,8 +281,9 @@ async function initialize() {
     if (preferred) {
       els.market.value = preferred.market_key
       await calculate()
+    } else {
+      setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด`, 'ready')
     }
-    setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'เชื่อมต่อข้อมูลไม่สำเร็จ', 'error')
