@@ -65,15 +65,22 @@ app.innerHTML = `
         <div id="pin2Bottom" class="struct-picks"></div>
       </article>
 
-      <article class="struct-card pattern-card">
-        <div class="struct-card-head"><small>👯 เบิ้ล 2 ตัว</small><span>จากตัวเด่น / รูด</span></div>
+      <article id="pin2DoubleCard" class="struct-card pattern-card">
+        <div class="struct-card-head"><small>👯 เบิ้ล 2 ตัว</small><span id="pin2DoubleMeta">เฝ้าดู</span></div>
         <div id="pin2Double" class="struct-picks"></div>
+        <div class="pattern-evidence"><span>จับเบิ้ลจาก <b>ตัวเด่น / รูด</b> แยกจากชุดเจาะปกติ</span></div>
       </article>
 
-      <article class="struct-card pattern-card">
+      <article id="pin3PatternCard" class="struct-card pattern-card">
         <div class="struct-card-head"><small id="pin3Title">🔮 เจาะ 3 ตาม Pattern</small><span id="pin3PatternMeta">—</span></div>
         <div id="pin3Pattern" class="struct-picks triples"></div>
         <div class="pattern-evidence"><span>สร้างจาก <b>WIN7 ทั้ง 7 ตัว</b> แล้วคัดรูปทรงตาม Pattern + Position</span></div>
+      </article>
+
+      <article id="pin3DoubleCard" class="struct-card pattern-card">
+        <div class="struct-card-head"><small>👯 เจาะ 3 เบิ้ล</small><span id="pin3DoubleMeta">เฝ้าดู</span></div>
+        <div id="pin3Double" class="struct-picks triples"></div>
+        <div class="pattern-evidence"><span>สร้างเบิ้ล <b>AAB / ABB</b> จาก WIN7 แล้วให้ Position เลือกทิศ • ไม่ปนชุดปกติ</span></div>
       </article>
 
       <div class="struct-grid two">
@@ -88,7 +95,7 @@ app.innerHTML = `
       </div>
 
       <button id="copy" class="struct-copy" type="button">คัดลอกชุด</button>
-      <p class="struct-note">Flow: Ranking → WIN6 MOD0 หลัก → เติม Rescue อันดับดีที่สุดเป็นตัวที่ 7 → Pattern/Position → เจาะ • ไม่มีชุดสำรองบนหน้าใช้งาน</p>
+      <p class="struct-note">Flow: Ranking → WIN6 MOD0 หลัก → เติม Rescue ตัวที่ 7 → เจาะปกติตาม Pattern/Position + แยกเบิ้ล 2/3 ตลอด • ถ้า Pattern = เบิ้ล กล่องเบิ้ลขึ้นสถานะเด่น</p>
     </section>
   </main>
 `
@@ -96,7 +103,9 @@ app.innerHTML = `
 const els = Object.fromEntries([
   'marketSearch', 'market', 'refresh', 'status', 'result', 'marketName', 'sourceTop', 'sourceBottom', 'sampleSize',
   'patternForecast', 'patternSignals', 'patternEvidence', 'rud', 'win7', 'mod0PrimaryMeta',
-  'pin2Top', 'pin2Bottom', 'pin2Double', 'pin3Title', 'pin3PatternMeta', 'pin3Pattern', 'evidence', 'backtest', 'copy',
+  'pin2Top', 'pin2Bottom', 'pin2DoubleCard', 'pin2DoubleMeta', 'pin2Double',
+  'pin3PatternCard', 'pin3Title', 'pin3PatternMeta', 'pin3Pattern',
+  'pin3DoubleCard', 'pin3DoubleMeta', 'pin3Double', 'evidence', 'backtest', 'copy',
 ].map((id) => [id, document.querySelector(`#${id}`)]))
 
 const PATTERN_LABELS = {
@@ -141,7 +150,7 @@ function renderWin7(target, analysis) {
 }
 
 function renderPicks(target, items, key) {
-  target.innerHTML = items.map((item, index) => `
+  target.innerHTML = (items || []).map((item, index) => `
     <span class="struct-pick ${index === 0 ? 'primary' : ''}">
       <b>${item[key]}</b><small>${item.score}</small>
     </span>
@@ -156,6 +165,9 @@ function twoDigitDoubles(analysis) {
 function renderPatterns(analysis) {
   const selected = analysis.pickPattern
   const label = PATTERN_LABELS[selected.type] || selected.type
+  const doubleActive = analysis.doublePattern?.active === true
+  const doubleScore = analysis.doublePattern?.score ?? 0
+
   els.patternForecast.textContent = `${label} • ${selected.score ?? 0}% • ${selected.status || '—'}`
   els.patternSignals.innerHTML = analysis.patternSignals.map((signal) => `
     <div class="pattern-signal" data-status="${signal.status}">
@@ -166,8 +178,16 @@ function renderPatterns(analysis) {
     </div>
   `).join('')
   els.patternEvidence.innerHTML = `<span>Pattern ที่ใช้คัดเจาะ 3: <b>${label}</b> • ${selected.source === 'FORECAST' ? 'Forecast' : 'อันดับสัญญาณ'}</span>`
+
+  els.pin3PatternCard.classList.toggle('hidden', doubleActive)
   els.pin3Title.textContent = `🔮 เจาะ 3 • ${label}`
   els.pin3PatternMeta.textContent = `${selected.score ?? 0}% • จาก WIN7`
+
+  const doubleText = doubleActive ? `🔥 เด่น • ${doubleScore}%` : `เฝ้าดู • ${doubleScore}%`
+  els.pin2DoubleMeta.textContent = doubleText
+  els.pin3DoubleMeta.textContent = doubleText
+  els.pin2DoubleCard.classList.toggle('accent', doubleActive)
+  els.pin3DoubleCard.classList.toggle('accent', doubleActive)
 }
 
 function renderEvidence(analysis) {
@@ -209,6 +229,7 @@ function renderBacktest(backtest) {
     metric('เจาะ 2 บน', m.pin2TopPair, backtest.samples),
     metric('เจาะ 2 ล่าง', m.pin2BottomPair, backtest.samples),
     metric('เจาะ 3 ตาม Pattern', m.pin3PatternPermutation, backtest.samples),
+    metric('เจาะ 3 เบิ้ล', m.pin3DoublePermutation, backtest.samples),
     metric('Pattern ตรงรูปทรง', m.patternTypeHit, backtest.samples),
   ].join('')
 }
@@ -227,6 +248,7 @@ function renderResult(marketName, analysis) {
   renderPicks(els.pin2Bottom, analysis.pin2Bottom, 'pair')
   renderPicks(els.pin2Double, twoDigitDoubles(analysis), 'pair')
   renderPicks(els.pin3Pattern, analysis.pin3Pattern, 'triple')
+  renderPicks(els.pin3Double, analysis.pin3Double, 'triple')
   renderEvidence(analysis)
   renderBacktest(analysis.backtest)
   els.result.classList.remove('hidden')
@@ -244,7 +266,7 @@ async function calculate() {
     const history = await loadRecentResults(marketKey, 30)
     const analysis = analyzeStructuralProbabilityV6(history, { includeBacktest: true, maxBacktest: 10 })
     renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • WIN7 MOD0 + Rescue • Frequency ${analysis.frequencyWindow} งวด • v6.2`, 'ready')
+    setStatus(`พร้อม • WIN7 MOD0 + Rescue + Double • Frequency ${analysis.frequencyWindow} งวด • v6.3`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'คำนวณไม่สำเร็จ', 'error')
@@ -258,6 +280,7 @@ function copyText() {
   if (!current) return ''
   const pattern = PATTERN_LABELS[current.pickPattern.type] || current.pickPattern.type
   const win7Text = `${current.win6.join(' • ')}${current.rescueDigit === null || current.rescueDigit === undefined ? '' : ` • (${current.rescueDigit})`}`
+  const doubleStatus = current.doublePattern?.active ? '🔥 เด่น' : 'เฝ้าดู'
   return [
     `📊 Xgen | ${current.marketName}`,
     `${current.source.top3}-${current.source.bottom2}`,
@@ -268,8 +291,9 @@ function copyText() {
     '',
     `🎯 เจาะ 2 บน: ${current.pin2Top.map((item) => item.pair).join(' • ')}`,
     `🎯 เจาะ 2 ล่าง: ${current.pin2Bottom.map((item) => item.pair).join(' • ')}`,
-    `👯 เบิ้ล 2 ตัว: ${current.rud.map((digit) => `${digit}${digit}`).join(' • ')}`,
+    `👯 เบิ้ล 2 ตัว [${doubleStatus}]: ${current.rud.map((digit) => `${digit}${digit}`).join(' • ')}`,
     `🔮 เจาะ 3 ${pattern}: ${current.pin3Pattern.map((item) => item.triple).join(' • ')}`,
+    `👯 เจาะ 3 เบิ้ล [${doubleStatus}]: ${current.pin3Double.map((item) => item.triple).join(' • ')}`,
   ].join('\n')
 }
 
