@@ -111,6 +111,12 @@ export function selectMod0Win6FromRanking(fusionRanking) {
   }
 }
 
+export function selectWin7RescueDigit(fusionRanking, primaryDigits) {
+  const primary = new Set((primaryDigits || []).map(Number))
+  const rescue = (fusionRanking || []).find((item) => !primary.has(Number(item.digit)))
+  return rescue ? Number(rescue.digit) : null
+}
+
 function buildPairFromWin6(win6, scopeRanking, leftPositionRanking, rightPositionRanking) {
   const scope = scoreMap(scopeRanking)
   const leftPos = scoreMap(leftPositionRanking)
@@ -235,20 +241,25 @@ function walkForwardWin6Pattern(history, maxTests = 10) {
     const actual = capped[targetIndex]
     const baseSet = new Set(prediction.baseWin6)
     const mod0Set = new Set(prediction.win6)
+    const win7Set = new Set(prediction.win7)
     const reserveSet = new Set(prediction.win6Mod0Reserve || [])
     const topDigits = actual.top3.split('').map(Number)
     const bottomDigits = actual.bottom2.split('').map(Number)
     const baseTopHits = hitCount(topDigits, baseSet)
     const mod0TopHits = hitCount(topDigits, mod0Set)
+    const win7TopHits = hitCount(topDigits, win7Set)
     const reserveTopHits = reserveSet.size ? hitCount(topDigits, reserveSet) : 0
 
     results.push({
       baseTopHits,
       mod0TopHits,
+      win7TopHits,
       reserveTopHits,
       mod0EitherTopHits: Math.max(mod0TopHits, reserveTopHits),
       win6TopFull: mod0TopHits === 3,
+      win7TopFull: win7TopHits === 3,
       win6BottomFull: bottomDigits.every((digit) => mod0Set.has(digit)),
+      win7BottomFull: bottomDigits.every((digit) => win7Set.has(digit)),
       pin2TopPair: prediction.pin2Top.some((item) => sameCombination(item.pair, actual.top3.slice(1))),
       pin2BottomPair: prediction.pin2Bottom.some((item) => sameCombination(item.pair, actual.bottom2)),
       pin3PatternPermutation: prediction.pin3Pattern.some((item) => sameCombination(item.triple, actual.top3)),
@@ -270,6 +281,7 @@ function walkForwardWin6Pattern(history, maxTests = 10) {
     topCoverage: {
       base: distribution('baseTopHits'),
       mod0Primary: distribution('mod0TopHits'),
+      win7: distribution('win7TopHits'),
       mod0Reserve: distribution('reserveTopHits'),
       mod0Either: distribution('mod0EitherTopHits'),
     },
@@ -280,9 +292,14 @@ function walkForwardWin6Pattern(history, maxTests = 10) {
       mod0Top3: rate((item) => item.mod0TopHits === 3),
       mod0Top2: rate((item) => item.mod0TopHits === 2),
       mod0Top1: rate((item) => item.mod0TopHits === 1),
+      win7Top3: rate((item) => item.win7TopHits === 3),
+      win7Top2: rate((item) => item.win7TopHits === 2),
+      win7Top1: rate((item) => item.win7TopHits === 1),
       mod0EitherTop3: rate((item) => item.mod0EitherTopHits === 3),
       win6TopFull: rate((item) => item.win6TopFull),
+      win7TopFull: rate((item) => item.win7TopFull),
       win6BottomFull: rate((item) => item.win6BottomFull),
+      win7BottomFull: rate((item) => item.win7BottomFull),
       pin2TopPair: rate((item) => item.pin2TopPair),
       pin2BottomPair: rate((item) => item.pin2BottomPair),
       pin3PatternPermutation: rate((item) => item.pin3PatternPermutation),
@@ -296,31 +313,36 @@ export function analyzeStructuralProbabilityV6(history, { includeBacktest = true
   const base = analyzeStructuralProbabilityV5(capped, { includeBacktest: false, maxBacktest })
   const mod0 = selectMod0Win6FromRanking(base.rankings.fusion)
   const win6 = [...mod0.primary.digits]
+  const rescueDigit = selectWin7RescueDigit(base.rankings.fusion, win6)
+  const win7 = rescueDigit === null ? [...win6] : [...win6, rescueDigit]
   const win6Mod0Reserve = mod0.reserve ? [...mod0.reserve.digits] : []
 
   const pin2Top = buildPairFromWin6(
-    win6,
+    win7,
     base.rankings.top,
     base.positionRankings.top.tens,
     base.positionRankings.top.units,
   )
   const pin2Bottom = buildPairFromWin6(
-    win6,
+    win7,
     base.rankings.bottom,
     base.positionRankings.bottom.tens,
     base.positionRankings.bottom.units,
   )
 
-  const selected = choosePattern(base, win6)
-  const pin3Pattern = buildPatternTriples(win6, base.rankings.top, base.positionRankings, selected)
+  const selected = choosePattern(base, win7)
+  const pin3Pattern = buildPatternTriples(win7, base.rankings.top, base.positionRankings, selected)
   const backtest = includeBacktest ? walkForwardWin6Pattern(capped, maxBacktest) : null
 
   return {
     ...base,
-    version: 'v6.1-win6-mod0-pattern-picks',
-    pickPolicy: 'WIN6_MOD0_PATTERN_ONLY',
+    version: 'v6.2-win7-rescue-pattern-picks',
+    pickPolicy: 'WIN7_RESCUE_PATTERN_ONLY',
     baseWin6: mod0.baseWin6,
     win6,
+    win7,
+    rescueDigit,
+    pickPool: win7,
     win6Mod0Reserve,
     mod0: {
       primary: mod0.primary,
