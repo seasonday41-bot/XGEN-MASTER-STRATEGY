@@ -2,14 +2,13 @@ import { analyzeStructuralProbabilityV4 } from './structural-probability-v4.js'
 import { classifyStructuralPatternV2 } from './structural-probability-v2.js'
 
 const DIGITS = Array.from({ length: 10 }, (_, digit) => digit)
-const WINDOWS = [5, 10, 15, 30]
-const FREQUENCY_WEIGHTS = { 5: 0.60, 10: 0.25, 15: 0.10, 30: 0.05 }
+const FREQUENCY_WINDOW = 5
+const FREQUENCY_WEIGHTS = { 5: 1 }
 
 const avg = (values) => {
   const usable = values.filter((value) => Number.isFinite(value))
   return usable.length ? usable.reduce((sum, value) => sum + value, 0) / usable.length : 0
 }
-
 const clamp = (value, min = 0, max = 100) => Math.min(max, Math.max(min, value))
 
 function normalizeDraw(draw) {
@@ -45,23 +44,10 @@ function normalizeScore(values) {
   return values.map((value) => Math.round(clamp((value / max) * 100)))
 }
 
-function adaptiveFrequencyScore(history, scope) {
-  const positions = scope === 'top' ? 3 : scope === 'bottom' ? 2 : 5
-  const raw = Array(10).fill(0)
-  let activeWeight = 0
-
-  WINDOWS.forEach((size) => {
-    const actual = Math.min(size, history.length)
-    if (!actual) return
-    const weight = FREQUENCY_WEIGHTS[size]
-    activeWeight += weight
-    const counts = countDigits(history.slice(0, actual), scope)
-    counts.forEach((count, digit) => {
-      raw[digit] += (count / (actual * positions)) * weight
-    })
-  })
-
-  return normalizeScore(raw.map((value) => value / Math.max(activeWeight, 0.0001)))
+function fiveDrawFrequencyScore(history, scope) {
+  const recent = history.slice(0, Math.min(FREQUENCY_WINDOW, history.length))
+  const counts = countDigits(recent, scope)
+  return normalizeScore(counts)
 }
 
 function trendEvidence(history, scope, gapByDigit) {
@@ -110,7 +96,7 @@ function trendEvidence(history, scope, gapByDigit) {
 
 function rerankScope(history, scope, baseRanking) {
   const baseMap = new Map(baseRanking.map((item) => [item.digit, item]))
-  const frequency = adaptiveFrequencyScore(history, scope)
+  const frequency = fiveDrawFrequencyScore(history, scope)
   const gapByDigit = Object.fromEntries(baseRanking.map((item) => [item.digit, item.gap]))
   const trend = trendEvidence(history, scope, gapByDigit)
   const trendMap = new Map(trend.map((item) => [item.digit, item]))
@@ -366,7 +352,8 @@ export function analyzeStructuralProbabilityV5(history, { includeBacktest = true
 
   return {
     ...base,
-    version: 'v5.0-adaptive-frequency',
+    version: 'v5.1-frequency-5-only',
+    frequencyWindow: FREQUENCY_WINDOW,
     frequencyWeights: { ...FREQUENCY_WEIGHTS },
     rankings: { top: topRanking, bottom: bottomRanking, all: allRanking, fusion: fusionRanking },
     marketPulse: marketPulse(allRanking),

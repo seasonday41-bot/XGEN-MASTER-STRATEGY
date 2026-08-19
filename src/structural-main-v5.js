@@ -12,7 +12,7 @@ app.innerHTML = `
       <div>
         <p class="struct-kicker">XGEN • MATHEMATICAL & STRUCTURAL PROBABILITY</p>
         <h1>Xgen <em>STRUCTURAL</em></h1>
-        <p>Adaptive Frequency • Pattern • Transition • Mirror • Walk-forward</p>
+        <p>Frequency 5 งวด • Pattern • Transition • Mirror • Walk-forward</p>
       </div>
       <span class="struct-badge">NO RANDOM</span>
     </header>
@@ -48,7 +48,7 @@ app.innerHTML = `
       </article>
 
       <article class="struct-card">
-        <div class="struct-card-head"><small>🌡️ จังหวะเลขล่าสุด</small><span>5 งวด 60% • 10 งวด 25% • 15 งวด 10% • 30 งวด 5%</span></div>
+        <div class="struct-card-head"><small>🌡️ จังหวะเลขล่าสุด</small><span>Frequency = 5 งวดล่าสุด 100% • งวดเก่าใช้ดูโครงสร้าง</span></div>
         <div id="marketPulse" class="struct-evidence"></div>
       </article>
 
@@ -85,12 +85,12 @@ app.innerHTML = `
       </div>
 
       <article class="struct-card rank-card">
-        <div class="struct-card-head"><small>คะแนนเลข 0-9</small><span>รวม Frequency เร็ว + Trend + Structural Evidence</span></div>
+        <div class="struct-card-head"><small>คะแนนเลข 0-9</small><span>Frequency 5 งวด + Trend + Structural Evidence</span></div>
         <div id="ranking" class="struct-ranking"></div>
       </article>
 
       <button id="copy" class="struct-copy" type="button">คัดลอกชุด</button>
-      <p class="struct-note">HOT / RETURNING / WARM / COLD เป็นสถานะเชิงสถิติจากจังหวะล่าสุด ไม่ใช่การรับประกันผล • Backtest ใช้ Walk-forward 10 งวดเมื่อข้อมูลเพียงพอ</p>
+      <p class="struct-note">Frequency ใช้เฉพาะ 5 งวดล่าสุด • ข้อมูลเก่ากว่านั้นยังใช้กับ Pattern / Transition / Mirror / Balance / Gap • HOT / RETURNING / WARM / COLD เป็นสถานะเชิงสถิติ • Backtest ใช้ Walk-forward 10 งวดเมื่อข้อมูลเพียงพอ</p>
     </section>
   </main>
 `
@@ -298,13 +298,13 @@ async function calculate() {
   const selected = markets.find((item) => item.market_key === marketKey)
   els.market.disabled = true
   els.refresh.disabled = true
-  setStatus('กำลังวิเคราะห์ Frequency 5 งวดและจังหวะตลาด...', 'loading')
+  setStatus('กำลังวิเคราะห์ Frequency 5 งวดและโครงสร้างย้อนหลัง...', 'loading')
 
   try {
     const history = await loadRecentResults(marketKey, 30)
     const analysis = analyzeStructuralProbabilityV5(history, { includeBacktest: true, maxBacktest: 10 })
     renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • ใช้ข้อมูล ${analysis.sampleSize} งวด • Adaptive Frequency v5`, 'ready')
+    setStatus(`พร้อม • Frequency ${analysis.frequencyWindow} งวด • Pattern ใช้ข้อมูล ${analysis.sampleSize} งวด • v5.1`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'คำนวณไม่สำเร็จ', 'error')
