@@ -16,9 +16,9 @@ app.innerHTML = `
       <div class="hero-rings" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="brand-mark" aria-hidden="true"><b>X</b><small>GEN</small></div>
       <div class="hero-copy">
-        <p class="eyebrow"><i></i> FG HISTORY CORE</p>
+        <p class="eyebrow"><i></i> FG SHADOW CORE</p>
         <h1>Xgen <em>ELITE</em></h1>
-        <p class="subtitle">MOD10 F/G • Historical Match • Digit Frequency</p>
+        <p class="subtitle">MOD10 F/G • Shadow Pairs • First Match</p>
       </div>
       <div class="hero-seal">
         <span><i></i> LIVE</span>
@@ -26,8 +26,8 @@ app.innerHTML = `
         <small>ตลาด</small>
       </div>
       <div class="hero-footer">
-        <span>◆ FG HISTORY WIN6</span>
-        <span>F + G MUST MATCH</span>
+        <span>◆ FG + SHADOW SET</span>
+        <span>FIRST PAIR MATCH</span>
       </div>
     </header>
 
@@ -65,8 +65,8 @@ app.innerHTML = `
 
     <section id="emptyState" class="empty-card">
       <div class="radar" aria-hidden="true"><span></span></div>
-      <strong>พร้อมเปิด FG HISTORY CORE</strong>
-      <p>เลือกตลาดเพื่อหา F/G จากผลล่าสุด แล้วคัดงวดย้อนหลังที่มี F และ G ครบทั้งคู่</p>
+      <strong>พร้อมเปิด FG SHADOW CORE</strong>
+      <p>เลือกตลาดเพื่อหา F/G และเลขเงา แล้วไล่ย้อนหลังหางวดแรกที่มีคู่ค้นครบ</p>
     </section>
 
     <section id="result" class="result hidden" aria-live="polite">
@@ -83,12 +83,12 @@ app.innerHTML = `
 
       <div class="result-grid">
         <article class="result-card rud-card">
-          <div class="card-label"><span>⚡</span><div><b>รูด FG</b><small>(บน 2 ตัว + ล่าง 2 ตัว) MOD10</small></div></div>
+          <div class="card-label"><span>⚡</span><div><b>รูด FG</b><small>MOD10 • รองรับกฎเลขตอง</small></div></div>
           <div id="fgDigits" class="rud-numbers"></div>
         </article>
 
         <article class="result-card win-card">
-          <div class="card-label"><span>✦</span><div><b>WIN6 + สำรอง</b><small>FG LOCK • MATCH FREQUENCY</small></div></div>
+          <div class="card-label"><span>✦</span><div><b>ชุดหลัก</b><small>FG + เงา • เติมจากงวดแรก</small></div></div>
           <div id="win6" class="digit-row"></div>
           <p id="seventh" class="note"></p>
         </article>
@@ -96,12 +96,12 @@ app.innerHTML = `
 
       <article class="result-card double-card">
         <div class="double-analysis">
-          <div class="card-label"><span>📚</span><div><b>ชุดย้อนหลังที่ผ่าน FG</b><small>ต้องมี F และ G พร้อมกัน</small></div></div>
+          <div class="card-label"><span>📚</span><div><b>งวดแรกที่เจอคู่</b><small>ค้นจากล่าสุดย้อนกลับ</small></div></div>
           <strong id="matchCount">—</strong>
           <p id="matchPreview">—</p>
         </div>
         <div class="double-picks">
-          <small>รองสถิติ</small>
+          <small>เงา FG</small>
           <div id="secondary" class="double-numbers"></div>
         </div>
       </article>
@@ -109,10 +109,10 @@ app.innerHTML = `
       <article class="result-card pin-card">
         <div class="pin-header">
           <div>
-            <div class="card-label"><span>◎</span><div><b>เจาะ 2</b><small>FG + WIN6</small></div></div>
-            <p>เรียงจากจำนวนงวดที่คู่เลขอยู่ร่วมกันในชุด FG ที่ผ่าน</p>
+            <div class="card-label"><span>◎</span><div><b>เจาะ 2</b><small>FG + ชุดหลัก</small></div></div>
+            <p>คัดจากชุดหลักและหลักฐานของงวดแรกที่เจอ</p>
           </div>
-          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกผล FG HISTORY CORE">คัดลอกชุด</button>
+          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกผล FG SHADOW CORE">คัดลอกชุด</button>
         </div>
         <div id="pin2" class="pair-row"></div>
       </article>
@@ -121,7 +121,7 @@ app.innerHTML = `
         <div class="pin-header">
           <div>
             <div class="card-label"><span>🎯</span><div><b>เจาะ 3 ปกติ</b><small>เลขไม่ซ้ำ • TOP 3 + EXTRA 2</small></div></div>
-            <p>คัดจาก FG + WIN6 + สำรอง โดยไม่สร้างเลขซ้ำในชุด 3 ตัว</p>
+            <p>คัดจาก FG + ชุดหลัก โดยไม่สร้างเลขซ้ำในชุด 3 ตัว</p>
           </div>
         </div>
         <div id="pin3" class="pair-row"></div>
@@ -130,7 +130,7 @@ app.innerHTML = `
 
       <article class="result-card double-card">
         <div class="double-analysis">
-          <div class="card-label"><span>↻</span><div><b>Pattern จากชุด FG ที่ผ่าน</b><small>HISTORY EVIDENCE</small></div></div>
+          <div class="card-label"><span>↻</span><div><b>Pattern จากงวดแรก</b><small>FIRST MATCH EVIDENCE</small></div></div>
           <strong id="doublePattern">—</strong>
           <p id="triplePattern">—</p>
         </div>
@@ -140,7 +140,7 @@ app.innerHTML = `
         </div>
       </article>
 
-      <p class="note">F=(หลักสิบ+หลักหน่วยของ 3 บน) mod10 • G=(2 ล่างบวกกัน) mod10 • ใช้เฉพาะงวดย้อนหลังที่มี F และ G อยู่พร้อมกัน แล้วนับความถี่เลข 0–9 เพื่อจัด WIN6</p>
+      <p class="note">ปกติ F=(หลักสิบ+หลักหน่วยของ 3 บน) mod10 • ถ้า 3 บนเป็นเลขตอง F=(A+B+C) mod10 • G=(2 ล่างบวกกัน) mod10 • ล็อก FG + เงา แล้วค้นคู่ F-เงาG / F-G / G-เงาF จากงวดล่าสุดย้อนหลัง • เจองวดแรกแล้วเติมเลขใหม่ทั้งหมด</p>
     </section>
   </main>
 `
@@ -279,21 +279,19 @@ function renderResult(marketName, analysis) {
   els.sourceBottom.textContent = analysis.source.bottom2
 
   els.fgDigits.innerHTML = `
-    <div class="rud-item main"><i aria-hidden="true"></i><b>${analysis.fg.join(' • ')}</b><small>⚡ F • G</small></div>
+    <div class="rud-item main"><i aria-hidden="true"></i><b>${analysis.fg.join(' • ')}</b><small>⚡ F • G${analysis.isTriple ? ' • กฎตอง' : ''}</small></div>
   `
 
-  els.win6.innerHTML = analysis.win6.map((digit) => `
-    <span class="digit ${analysis.strong.includes(digit) ? 'locked' : ''}">${digit}</span>
+  const mainSet = analysis.coreSet || analysis.win6
+  els.win6.innerHTML = mainSet.map((digit) => `
+    <span class="digit ${analysis.base.includes(digit) ? 'locked' : ''}">${digit}</span>
   `).join('')
-  els.seventh.textContent = `สำรอง: ${analysis.seventh ?? '—'}`
+  els.seventh.textContent = `ฐาน FG + เงา: ${analysis.base.join(' • ')}`
 
-  els.matchCount.textContent = `${analysis.matchCount} งวด`
-  els.matchPreview.textContent = analysis.matchedHistory
-    .slice(0, 4)
-    .map((row) => `${row.top3}-${row.bottom2}`)
-    .join(' • ')
-  els.secondary.innerHTML = analysis.secondary.length
-    ? analysis.secondary.map((digit) => `<b>${digit}</b>`).join('')
+  els.matchCount.textContent = `คู่ ${analysis.matchedPairs.join(' • ')}`
+  els.matchPreview.textContent = `${analysis.firstMatch.top3}-${analysis.firstMatch.bottom2} • ค้น ${analysis.searchPairs.join(' / ')}`
+  els.secondary.innerHTML = analysis.shadow.length
+    ? analysis.shadow.map((digit) => `<b>${digit}</b>`).join('')
     : '<b>—</b>'
 
   els.pin2.innerHTML = pairItems(
@@ -334,13 +332,13 @@ async function calculate() {
   const selected = markets.find((item) => item.market_key === marketKey)
   els.market.disabled = true
   els.refresh.disabled = true
-  setStatus('กำลังหา FG และคัดสถิติย้อนหลัง...', 'loading')
+  setStatus('กำลังหา FG เงา และคู่ย้อนหลัง...', 'loading')
 
   try {
     const source = await loadLatestResult(marketKey)
     const analysis = analyzePercentCore(source)
     renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • ผลล่าสุด ${formatThaiDate(source.draw_date)} • พบชุด FG ${analysis.matchCount} งวด`, 'ready')
+    setStatus(`พร้อม • ผลล่าสุด ${formatThaiDate(source.draw_date)} • เจอคู่ ${analysis.matchedPairs.join('/')} ที่ ${analysis.firstMatch.top3}-${analysis.firstMatch.bottom2}`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'โหลดข้อมูลไม่สำเร็จ', 'error')
@@ -371,7 +369,7 @@ async function initialize() {
     if (preferred) els.market.value = preferred.market_key
     els.marketSearch.disabled = false
     els.market.disabled = false
-    setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด • FG HISTORY CORE`, 'ready')
+    setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด • FG SHADOW FIRST MATCH`, 'ready')
     if (preferred) await calculate()
   } catch (error) {
     console.error(error)

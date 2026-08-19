@@ -35,6 +35,14 @@ function siblingPair(a, b) {
   return diff === 1 || diff === 9
 }
 
+function pairExistsInRow(row, pairDigits) {
+  const digits = rowDigits(row)
+  const [a, b] = pairDigits
+  if (a === b) return digits.filter((digit) => digit === a).length >= 2
+  const present = new Set(digits)
+  return present.has(a) && present.has(b)
+}
+
 function legacyPercentResult(value, percent) {
   const scaled = value * percent
   const integerPart = Math.floor(scaled / 100)
@@ -150,7 +158,7 @@ function legacyBuildWin6(ranking, mod10Pairs) {
 
 // Compatibility only for dormant FLOW × PERCENT modules/tests that still call
 // analyzePercentCore without history. The live Xgen entry always supplies history
-// and therefore always follows FG HISTORY CORE below.
+// and therefore always follows the FG shadow first-match core below.
 function analyzeLegacyPercentCompatibility(input, top3, bottom2) {
   const formulaResults = legacyFormulaResults(top3, bottom2)
   const ranking = legacyRankDigits(formulaResults)
@@ -178,9 +186,51 @@ export function calculateFG(top3, bottom2) {
   const bottom = String(bottom2 ?? '')
   validateInput(top, bottom)
 
-  const f = (Number(top[1]) + Number(top[2])) % 10
+  const isTriple = top[0] === top[1] && top[1] === top[2]
+  const f = isTriple
+    ? (Number(top[0]) + Number(top[1]) + Number(top[2])) % 10
+    : (Number(top[1]) + Number(top[2])) % 10
   const g = (Number(bottom[0]) + Number(bottom[1])) % 10
-  return { f, g, digits: [f, g] }
+  return { f, g, digits: [f, g], isTriple }
+}
+
+export function shadowDigit(digit) {
+  return (Number(digit) + 5) % 10
+}
+
+export function buildShadowSearchPairs(f, g) {
+  const shadowF = shadowDigit(f)
+  const shadowG = shadowDigit(g)
+  return [
+    { pair: `${f}${shadowG}`, digits: [f, shadowG] },
+    { pair: `${f}${g}`, digits: [f, g] },
+    { pair: `${g}${shadowF}`, digits: [g, shadowF] },
+  ]
+}
+
+export function findFirstHistoryPairMatch(history, searchPairs) {
+  const rows = Array.isArray(history) ? history.map(normalizeRow).filter(Boolean) : []
+
+  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
+    const row = rows[rowIndex]
+    const matchedPairs = searchPairs.filter((item) => pairExistsInRow(row, item.digits))
+    if (matchedPairs.length) {
+      return { row, rowIndex, matchedPairs }
+    }
+  }
+
+  return null
+}
+
+export function buildFirstMatchSet(f, g, matchedRow) {
+  const base = unique([f, g, shadowDigit(f), shadowDigit(g)])
+  const values = [...base]
+
+  rowDigits(matchedRow).forEach((digit) => {
+    if (!values.includes(digit)) values.push(digit)
+  })
+
+  return { base, values }
 }
 
 export function matchHistoryByFG(history, f, g) {
@@ -252,8 +302,7 @@ function pairStats(a, b, matchedHistory) {
   let occurrences = 0
   matchedHistory.forEach((row) => {
     const digits = rowDigits(row)
-    const present = new Set(digits)
-    if (present.has(a) && present.has(b)) drawHits += 1
+    if (pairExistsInRow(row, [a, b])) drawHits += 1
     occurrences += digits.filter((digit) => digit === a || digit === b).length
   })
   return { formulaHits: drawHits, occurrences }
@@ -382,42 +431,55 @@ export function analyzePercentCore(source, bottom2) {
 
   const history = input.history.map(normalizeRow).filter(Boolean)
   if (!history.length) {
-    throw new Error('สูตร FG ต้องมีข้อมูลย้อนหลังเพื่อค้นหางวดที่มี F และ G อยู่พร้อมกัน')
+    throw new Error('สูตร FG ต้องมีข้อมูลย้อนหลังเพื่อค้นหาคู่ FG + เงา')
   }
 
-  const { f, g, digits: fg } = calculateFG(top3, bottom)
-  const matchedHistory = matchHistoryByFG(history, f, g)
+  const { f, g, digits: fg, isTriple } = calculateFG(top3, bottom)
+  const shadow = [shadowDigit(f), shadowDigit(g)]
+  const searchPairObjects = buildShadowSearchPairs(f, g)
+  const firstMatch = findFirstHistoryPairMatch(history, searchPairObjects)
 
-  if (!matchedHistory.length) {
-    throw new Error(`ไม่พบงวดย้อนหลังที่มี FG ${f}${g} อยู่พร้อมกันในชุด 3 บน + 2 ล่าง`)
+  if (!firstMatch) {
+    throw new Error(`ไม่พบงวดย้อนหลังที่มีคู่ ${searchPairObjects.map((item) => item.pair).join(' / ')}`)
   }
 
+  const matchedHistory = [firstMatch.row]
   const ranking = rankMatchedDigits(matchedHistory)
-  const { win6, seventh } = buildHistoryWin6(fg, ranking)
+  const { base, values } = buildFirstMatchSet(f, g, firstMatch.row)
+  const win6 = values
+  const seventh = null
   const strong = unique(fg)
-  const secondary = ranking
-    .map((item) => item.digit)
-    .filter((digit) => !strong.includes(digit))
-    .slice(0, 2)
+  const secondary = shadow.filter((digit) => !strong.includes(digit))
   const pin2 = buildPin2(fg, win6, seventh, matchedHistory)
   const pin3Candidates = buildPin3(fg, win6, seventh, matchedHistory, ranking)
   const patterns = detectHistoryPatterns(matchedHistory)
+  const matchedPairs = firstMatch.matchedPairs.map((item) => item.pair)
   const { history: _history, ...sourceWithoutHistory } = input
 
   return {
-    engine: 'FG HISTORY CORE — MOD10 + MATCH FREQUENCY',
+    engine: 'FG SHADOW FIRST MATCH CORE',
     source: { ...sourceWithoutHistory, top3, bottom2: bottom },
     fg,
     f,
     g,
-    matchCount: matchedHistory.length,
+    isTriple,
+    shadow,
+    shadowF: shadow[0],
+    shadowG: shadow[1],
+    base,
+    searchPairs: searchPairObjects.map((item) => item.pair),
+    matchedPairs,
+    matchCount: 1,
+    matchIndex: firstMatch.rowIndex,
     matchedHistory,
+    firstMatch: firstMatch.row,
     ranking,
     strong,
     secondary,
     win6,
+    coreSet: win6,
     seventh,
-    keyPairs: [`${f}${g}`],
+    keyPairs: searchPairObjects.map((item) => item.pair),
     mod10Pairs: [],
     pairCollisions: pin2,
     pin2,

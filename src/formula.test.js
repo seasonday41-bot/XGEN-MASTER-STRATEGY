@@ -1,84 +1,96 @@
 import { describe, expect, it } from 'vitest'
 import {
   analyzePercentCore,
+  buildFirstMatchSet,
+  buildShadowSearchPairs,
   calculateFG,
-  matchHistoryByFG,
-  rankMatchedDigits,
+  findFirstHistoryPairMatch,
+  shadowDigit,
 } from './formula.js'
 
-describe('FG HISTORY CORE', () => {
-  it('หา F และ G จาก 2 ตัวบน/2 ตัวล่างด้วย mod10', () => {
-    expect(calculateFG('294', '73')).toEqual({ f: 3, g: 0, digits: [3, 0] })
+describe('FG SHADOW FIRST MATCH CORE', () => {
+  it('หา F/G แบบปกติจากหลักสิบ+หลักหน่วยของ 3 บน และ 2 ล่าง', () => {
+    expect(calculateFG('294', '73')).toEqual({ f: 3, g: 0, digits: [3, 0], isTriple: false })
   })
 
-  it('คัดเฉพาะงวดที่มี F และ G อยู่พร้อมกันในชุดเดียว', () => {
+  it('ใช้กฎเลขตอง: ถ้า 3 บนเป็น AAA ให้ F = A+B+C mod10', () => {
+    expect(calculateFG('222', '45')).toEqual({ f: 6, g: 9, digits: [6, 9], isTriple: true })
+    expect(calculateFG('777', '60')).toEqual({ f: 1, g: 6, digits: [1, 6], isTriple: true })
+  })
+
+  it('แปลงเลขเงาแบบ 0↔5 1↔6 2↔7 3↔8 4↔9', () => {
+    expect([0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(shadowDigit))
+      .toEqual([5, 6, 7, 8, 9, 0, 1, 2, 3, 4])
+  })
+
+  it('สร้างคู่ค้นตามลำดับ F-เงาG, F-G, G-เงาF', () => {
+    expect(buildShadowSearchPairs(4, 3).map((item) => item.pair))
+      .toEqual(['48', '43', '39'])
+  })
+
+  it('ไล่จากงวดล่าสุดย้อนหลังและเลือกงวดแรกที่มีคู่ค้น ไม่ใช้เลขเดี่ยว', () => {
     const history = [
-      { draw_date: '2026-08-14', top3: '039', bottom2: '61' },
-      { draw_date: '2026-08-05', top3: '305', bottom2: '37' },
-      { draw_date: '2026-08-04', top3: '751', bottom2: '48' },
-      { draw_date: '2026-08-03', top3: '226', bottom2: '40' },
+      { draw_date: '2026-08-17', top3: '748', bottom2: '12' },
+      { draw_date: '2026-08-14', top3: '292', bottom2: '85' },
+      { draw_date: '2026-08-12', top3: '863', bottom2: '89' },
     ]
+    const match = findFirstHistoryPairMatch(history, buildShadowSearchPairs(4, 3))
 
-    expect(matchHistoryByFG(history, 3, 0).map((row) => `${row.top3}-${row.bottom2}`))
-      .toEqual(['039-61', '305-37'])
+    expect(`${match.row.top3}-${match.row.bottom2}`).toBe('748-12')
+    expect(match.rowIndex).toBe(0)
+    expect(match.matchedPairs.map((item) => item.pair)).toEqual(['48'])
   })
 
-  it('นับความถี่ทุกหลักและใช้ความใกล้ปัจจุบันเป็นตัวตัดสินเมื่อคะแนนเท่ากัน', () => {
-    const ranking = rankMatchedDigits([
-      { draw_date: '2026-08-14', top3: '039', bottom2: '61' },
-      { draw_date: '2026-08-05', top3: '305', bottom2: '37' },
-    ])
+  it('ถ้าคู่เป็นเลขเดียวกัน เช่น 44 ต้องมีเลขนั้นอย่างน้อย 2 ตำแหน่ง', () => {
+    const match = findFirstHistoryPairMatch([
+      { top3: '410', bottom2: '26' },
+      { top3: '414', bottom2: '26' },
+    ], [{ pair: '44', digits: [4, 4] }])
 
-    expect(ranking.map((item) => [item.digit, item.occurrences])).toEqual([
-      [3, 3],
-      [0, 2],
-      [9, 1],
-      [6, 1],
-      [1, 1],
-      [5, 1],
-      [7, 1],
-    ])
+    expect(`${match.row.top3}-${match.row.bottom2}`).toBe('414-26')
+    expect(match.rowIndex).toBe(1)
   })
 
-  it('ล็อก FG ก่อน แล้วเติม WIN6 จากความถี่ของงวดที่ผ่านเท่านั้น', () => {
+  it('ล็อก FG + เงา แล้วเติมเลขใหม่ทั้งหมดจากงวดแรกที่เจอ', () => {
+    expect(buildFirstMatchSet(4, 3, { top3: '748', bottom2: '12' })).toEqual({
+      base: [4, 3, 9, 8],
+      values: [4, 3, 9, 8, 7, 1, 2],
+    })
+  })
+
+  it('เคสดาวโจนส์สตาร์ 704-76 ต้องได้ 4 3 9 8 7 1 2', () => {
     const result = analyzePercentCore({
       draw_date: '2026-08-18',
-      top3: '294',
-      bottom2: '73',
+      top3: '704',
+      bottom2: '76',
       history: [
-        { draw_date: '2026-08-14', top3: '039', bottom2: '61' },
-        { draw_date: '2026-08-05', top3: '305', bottom2: '37' },
-        { draw_date: '2026-08-04', top3: '751', bottom2: '48' },
+        { draw_date: '2026-08-17', top3: '748', bottom2: '12' },
+        { draw_date: '2026-08-16', top3: '617', bottom2: '60' },
+        { draw_date: '2026-08-15', top3: '264', bottom2: '77' },
+        { draw_date: '2026-08-14', top3: '292', bottom2: '85' },
+        { draw_date: '2026-08-12', top3: '863', bottom2: '89' },
       ],
     })
 
-    expect(result.fg).toEqual([3, 0])
-    expect(result.matchCount).toBe(2)
-    expect(result.win6).toEqual([3, 0, 9, 6, 1, 5])
-    expect(result.seventh).toBe(7)
-    expect(result.strong).toEqual([3, 0])
-    expect(result.secondary).toEqual([9, 6])
+    expect(result.fg).toEqual([4, 3])
+    expect(result.shadow).toEqual([9, 8])
+    expect(result.searchPairs).toEqual(['48', '43', '39'])
+    expect(result.matchedPairs).toEqual(['48'])
+    expect(`${result.firstMatch.top3}-${result.firstMatch.bottom2}`).toBe('748-12')
+    expect(result.win6).toEqual([4, 3, 9, 8, 7, 1, 2])
+    expect(result.coreSet).toEqual([4, 3, 9, 8, 7, 1, 2])
+    expect(result.seventh).toBeNull()
   })
 
-  it('ไม่ยอมเอางวดที่มี F หรือ G เพียงตัวเดียวมาปน', () => {
+  it('ไม่ fallback ไปใช้เลขเดี่ยวหรือความถี่ถ้าไม่มีคู่ค้น', () => {
     expect(() => analyzePercentCore({
-      top3: '448',
-      bottom2: '17',
+      top3: '704',
+      bottom2: '76',
       history: [
-        { draw_date: '2026-08-13', top3: '483', bottom2: '69' },
-        { draw_date: '2026-08-11', top3: '240', bottom2: '56' },
+        { draw_date: '2026-08-17', top3: '750', bottom2: '12' },
+        { draw_date: '2026-08-16', top3: '204', bottom2: '26' },
       ],
-    })).toThrow('ไม่พบงวดย้อนหลังที่มี FG 28')
-  })
-
-  it('ไม่สร้าง WIN6 จากเลขที่ไม่เคยอยู่ในชุด FG ที่ผ่าน', () => {
-    expect(() => analyzePercentCore({
-      top3: '574',
-      bottom2: '25',
-      history: [
-        { draw_date: '2026-08-07', top3: '717', bottom2: '11' },
-      ],
-    })).toThrow('ยังสร้าง WIN6 ไม่ได้')
+    })).toThrow('ไม่พบงวดย้อนหลังที่มีคู่ 48 / 43 / 39')
   })
 
   it('โหมด legacy มีไว้เฉพาะ caller เก่าที่ไม่ส่ง history', () => {
