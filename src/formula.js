@@ -1,3 +1,10 @@
+const LEGACY_MOD10_PAIRS = [
+  [1, 9],
+  [2, 8],
+  [3, 7],
+  [4, 6],
+]
+
 function validateInput(top3, bottom2) {
   if (!/^\d{3}$/.test(top3) || !/^\d{2}$/.test(bottom2)) {
     throw new Error('ผลรางวัลไม่ครบ 3 ตัวบน และ 2 ตัวล่าง')
@@ -28,6 +35,144 @@ function siblingPair(a, b) {
   return diff === 1 || diff === 9
 }
 
+function legacyPercentResult(value, percent) {
+  const scaled = value * percent
+  const integerPart = Math.floor(scaled / 100)
+  const decimals = String(scaled % 100).padStart(2, '0')
+  return `${integerPart}${decimals}`
+}
+
+function legacyFormulaResults(top3, bottom2) {
+  const top = Number(top3)
+  const bottom = Number(bottom2)
+  const reversedTop = Number([...top3].reverse().join(''))
+  const cross = Number(`${top3[0]}${bottom2[1]}${top3[2]}${bottom2[0]}`)
+
+  return [
+    legacyPercentResult(top, 2),
+    legacyPercentResult(top, 9),
+    legacyPercentResult(bottom, 56),
+    legacyPercentResult(top + bottom, 7),
+    legacyPercentResult(Math.abs(top - bottom), 11),
+    legacyPercentResult(Number(`${top3}${bottom2}`), 3),
+    legacyPercentResult(reversedTop, 5),
+    legacyPercentResult(cross, 8),
+  ]
+}
+
+function legacyRankDigits(formulaResults) {
+  const stats = Array.from({ length: 10 }, (_, digit) => ({
+    digit,
+    occurrences: 0,
+    formulaHits: 0,
+    firstSeen: Number.POSITIVE_INFINITY,
+    score: 0,
+  }))
+
+  let scanOrder = 0
+  formulaResults.forEach((result) => {
+    const present = new Set()
+    String(result).split('').forEach((value) => {
+      const digit = Number(value)
+      const item = stats[digit]
+      item.occurrences += 1
+      present.add(digit)
+      if (!Number.isFinite(item.firstSeen)) item.firstSeen = scanOrder
+      scanOrder += 1
+    })
+    present.forEach((digit) => { stats[digit].formulaHits += 1 })
+  })
+
+  stats.forEach((item) => { item.score = item.occurrences + item.formulaHits })
+  return stats
+    .sort((left, right) =>
+      right.score - left.score ||
+      right.formulaHits - left.formulaHits ||
+      right.occurrences - left.occurrences ||
+      left.firstSeen - right.firstSeen ||
+      left.digit - right.digit,
+    )
+    .map((item, index) => ({ ...item, rank: index + 1 }))
+}
+
+function legacyScoreMod10Pairs(ranking) {
+  const byDigit = new Map(ranking.map((item) => [item.digit, item]))
+  const strong = new Set(ranking.slice(0, 2).map((item) => item.digit))
+
+  return LEGACY_MOD10_PAIRS.map((digits, sourceOrder) => {
+    const [a, b] = digits
+    const aStat = byDigit.get(a)
+    const bStat = byDigit.get(b)
+    const balanceBonus = Math.min(aStat.score, bStat.score) * 1.5
+    const strongBonus = (strong.has(a) ? 2 : 0) + (strong.has(b) ? 2 : 0)
+    const rankBonus = ((10 - aStat.rank) + (10 - bStat.rank)) * 0.12
+    return {
+      pair: canonicalPair(a, b),
+      digits,
+      sourceOrder,
+      score: aStat.score + bStat.score + balanceBonus + strongBonus + rankBonus,
+    }
+  }).sort((left, right) => right.score - left.score || left.sourceOrder - right.sourceOrder)
+}
+
+function legacyBuildWin6(ranking, mod10Pairs) {
+  const win6 = ranking.slice(0, 2).map((item) => item.digit)
+  const selectedPairs = []
+
+  mod10Pairs.forEach((item) => {
+    if (win6.length >= 6) return
+    const inside = item.digits.filter((digit) => win6.includes(digit))
+    const outside = item.digits.filter((digit) => !win6.includes(digit))
+
+    if (inside.length === 1 && outside.length === 1) {
+      win6.push(outside[0])
+      selectedPairs.push(item.pair)
+      return
+    }
+
+    if (inside.length === 0 && outside.length === 2 && 6 - win6.length >= 2) {
+      win6.push(...outside)
+      selectedPairs.push(item.pair)
+    }
+  })
+
+  ranking.forEach((item) => {
+    if (win6.length < 6 && !win6.includes(item.digit)) win6.push(item.digit)
+  })
+
+  const seventh = ranking.find((item) => !win6.includes(item.digit))?.digit ?? null
+  const keyPairs = mod10Pairs
+    .filter((item) => selectedPairs.includes(item.pair) && item.digits.every((digit) => win6.includes(digit)))
+    .map((item) => item.pair)
+
+  return { win6, seventh, keyPairs }
+}
+
+// Compatibility only for dormant FLOW × PERCENT modules/tests that still call
+// analyzePercentCore without history. The live Xgen entry always supplies history
+// and therefore always follows FG HISTORY CORE below.
+function analyzeLegacyPercentCompatibility(input, top3, bottom2) {
+  const formulaResults = legacyFormulaResults(top3, bottom2)
+  const ranking = legacyRankDigits(formulaResults)
+  const strong = ranking.slice(0, 2).map((item) => item.digit)
+  const secondary = ranking.slice(2, 4).map((item) => item.digit)
+  const mod10Pairs = legacyScoreMod10Pairs(ranking)
+  const { win6, seventh, keyPairs } = legacyBuildWin6(ranking, mod10Pairs)
+
+  return {
+    engine: 'LEGACY PERCENT COMPATIBILITY — FLOW ONLY',
+    source: { ...input, top3, bottom2 },
+    formulaResults,
+    ranking,
+    strong,
+    secondary,
+    mod10Pairs,
+    win6,
+    seventh,
+    keyPairs,
+  }
+}
+
 export function calculateFG(top3, bottom2) {
   const top = String(top3 ?? '')
   const bottom = String(bottom2 ?? '')
@@ -56,7 +201,6 @@ export function rankMatchedDigits(matchedHistory) {
   }))
 
   let scanOrder = 0
-
   matchedHistory.forEach((row, rowIndex) => {
     const digits = rowDigits(row)
     const present = new Set()
@@ -70,9 +214,7 @@ export function rankMatchedDigits(matchedHistory) {
       scanOrder += 1
     })
 
-    present.forEach((digit) => {
-      stats[digit].drawHits += 1
-    })
+    present.forEach((digit) => { stats[digit].drawHits += 1 })
   })
 
   return stats
@@ -94,9 +236,7 @@ export function buildHistoryWin6(fgDigits, ranking) {
   })
 
   ranking.forEach((item) => {
-    if (win6.length < 6 && !win6.includes(item.digit)) {
-      win6.push(item.digit)
-    }
+    if (win6.length < 6 && !win6.includes(item.digit)) win6.push(item.digit)
   })
 
   if (win6.length < 6) {
@@ -110,28 +250,24 @@ export function buildHistoryWin6(fgDigits, ranking) {
 function pairStats(a, b, matchedHistory) {
   let drawHits = 0
   let occurrences = 0
-
   matchedHistory.forEach((row) => {
     const digits = rowDigits(row)
     const present = new Set(digits)
     if (present.has(a) && present.has(b)) drawHits += 1
     occurrences += digits.filter((digit) => digit === a || digit === b).length
   })
-
   return { formulaHits: drawHits, occurrences }
 }
 
 function tripleStats(digits, matchedHistory) {
   let drawHits = 0
   let occurrences = 0
-
   matchedHistory.forEach((row) => {
     const rowValues = rowDigits(row)
     const present = new Set(rowValues)
     if (digits.every((digit) => present.has(digit))) drawHits += 1
     occurrences += rowValues.filter((digit) => digits.includes(digit)).length
   })
-
   return { formulaHits: drawHits, occurrences }
 }
 
@@ -147,20 +283,12 @@ export function buildPin2(fgDigits, win6, seventh, matchedHistory) {
     const pair = `${a}${b}`
     if (seen.has(pair)) return
     seen.add(pair)
-    candidates.push({
-      pair,
-      digits: [a, b],
-      sourceOrder,
-      ...pairStats(a, b, matchedHistory),
-    })
+    candidates.push({ pair, digits: [a, b], sourceOrder, ...pairStats(a, b, matchedHistory) })
     sourceOrder += 1
   }
 
   if (fgDigits[0] !== fgDigits[1]) add(fgDigits[0], fgDigits[1])
-
-  anchors.forEach((anchor) => {
-    pool.forEach((digit) => add(anchor, digit))
-  })
+  anchors.forEach((anchor) => { pool.forEach((digit) => add(anchor, digit)) })
 
   return candidates
     .sort((left, right) =>
@@ -247,10 +375,12 @@ export function analyzePercentCore(source, bottom2) {
   const bottom = String(input.bottom2 ?? '')
   validateInput(top3, bottom)
 
-  const history = Array.isArray(input.history)
-    ? input.history.map(normalizeRow).filter(Boolean)
-    : []
+  const hasHistoryField = Array.isArray(input.history)
+  if (!hasHistoryField) {
+    return analyzeLegacyPercentCompatibility(input, top3, bottom)
+  }
 
+  const history = input.history.map(normalizeRow).filter(Boolean)
   if (!history.length) {
     throw new Error('สูตร FG ต้องมีข้อมูลย้อนหลังเพื่อค้นหางวดที่มี F และ G อยู่พร้อมกัน')
   }
