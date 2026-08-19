@@ -1,0 +1,2 @@
+/* Visual-only UI polish */
+.result-card{border-radius:24px}.double-numbers{flex-wrap:wrap}.pair small{white-space:normal;text-align:center}@media(max-width:430px){.pair-row{grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}.result>article.double-card:last-of-type{grid-template-columns:1fr}.double-picks{min-width:0}.double-numbers{flex-wrap:wrap}}
