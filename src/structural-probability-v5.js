@@ -1,5 +1,6 @@
 import { analyzeStructuralProbabilityV4 } from './structural-probability-v4.js'
 import { classifyStructuralPatternV2 } from './structural-probability-v2.js'
+import { buildMatrixPickChallenger } from './matrix-pick-challenger.js'
 
 const DIGITS = Array.from({ length: 10 }, (_, digit) => digit)
 const FREQUENCY_WINDOW = 5
@@ -385,6 +386,11 @@ function walkForwardAdaptive(history, maxTests = 10) {
       pin2BottomPair: prediction.pin2Bottom.some((item) => sameCombination(item.pair, actual.bottom2)),
       pin3NormalPermutation: prediction.pin3Normal.some((item) => sameCombination(item.triple, actual.top3)),
       pin3DoublePermutation: prediction.pin3Double.some((item) => sameCombination(item.triple, actual.top3)),
+      matrixPin2TopPair: prediction.matrixChallenger.pin2Top.some((item) => sameCombination(item.pair, actual.top3.slice(1))),
+      matrixPin2BottomPair: prediction.matrixChallenger.pin2Bottom.some((item) => sameCombination(item.pair, actual.bottom2)),
+      matrixPin3NormalPermutation: prediction.matrixChallenger.pin3Normal.some((item) => sameCombination(item.triple, actual.top3)),
+      matrixPin3HamPermutation: prediction.matrixChallenger.pin3Ham.some((item) => sameCombination(item.triple, actual.top3)),
+      matrixPin3DoublePermutation: prediction.matrixChallenger.pin3Double.some((item) => sameCombination(item.triple, actual.top3)),
     })
   }
 
@@ -399,6 +405,11 @@ function walkForwardAdaptive(history, maxTests = 10) {
       pin2BottomPair: rate('pin2BottomPair'),
       pin3NormalPermutation: rate('pin3NormalPermutation'),
       pin3DoublePermutation: rate('pin3DoublePermutation'),
+      matrixPin2TopPair: rate('matrixPin2TopPair'),
+      matrixPin2BottomPair: rate('matrixPin2BottomPair'),
+      matrixPin3NormalPermutation: rate('matrixPin3NormalPermutation'),
+      matrixPin3HamPermutation: rate('matrixPin3HamPermutation'),
+      matrixPin3DoublePermutation: rate('matrixPin3DoublePermutation'),
     },
   }
 }
@@ -424,6 +435,7 @@ export function analyzeStructuralProbabilityV5(history, { includeBacktest = true
   const bottomRanking = rerankScope(capped, 'bottom', base.rankings.bottom)
   const allRanking = rerankScope(capped, 'all', base.rankings.all)
   const fusionRanking = fuseRankings(topRanking, bottomRanking, allRanking)
+  const rankings = { top: topRanking, bottom: bottomRanking, all: allRanking, fusion: fusionRanking }
   const win6 = fusionRanking.slice(0, 6).map((item) => item.digit)
   const topWin6 = topRanking.slice(0, 6).map((item) => item.digit)
   const bottomWin6 = bottomRanking.slice(0, 6).map((item) => item.digit)
@@ -443,17 +455,26 @@ export function analyzeStructuralProbabilityV5(history, { includeBacktest = true
     position.gates.top.tens,
     position.gates.top.units,
   ], topRanking, 'DOUBLE', transition, mirror)
+  const matrixChallenger = buildMatrixPickChallenger({
+    history: capped,
+    positionGates: position.gates,
+    positionRankings: position.rankings,
+    rankings,
+    patternSignals: base.patternSignals,
+    transition,
+    mirror,
+  })
   const adaptiveBacktest = includeBacktest ? walkForwardAdaptive(capped, maxBacktest) : null
 
   return {
     ...base,
-    version: 'v5.2-position-candidate-gate',
+    version: 'v5.4-matrix-challenger',
     frequencyWindow: FREQUENCY_WINDOW,
     frequencyWeights: { ...FREQUENCY_WEIGHTS },
     positionGateSize: POSITION_GATE_SIZE,
     positionGates: position.gates,
     positionRankings: position.rankings,
-    rankings: { top: topRanking, bottom: bottomRanking, all: allRanking, fusion: fusionRanking },
+    rankings,
     marketPulse: marketPulse(allRanking),
     rud,
     win6,
@@ -464,6 +485,7 @@ export function analyzeStructuralProbabilityV5(history, { includeBacktest = true
     pin2Bottom,
     pin3Normal,
     pin3Double,
+    matrixChallenger,
     backtest: base.backtest && adaptiveBacktest
       ? {
           ...base.backtest,
