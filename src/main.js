@@ -16,9 +16,9 @@ app.innerHTML = `
       <div class="hero-rings" aria-hidden="true"><i></i><i></i><i></i></div>
       <div class="brand-mark" aria-hidden="true"><b>X</b><small>GEN</small></div>
       <div class="hero-copy">
-        <p class="eyebrow"><i></i> PERCENT CORE</p>
+        <p class="eyebrow"><i></i> FG HISTORY CORE</p>
         <h1>Xgen <em>ELITE</em></h1>
-        <p class="subtitle">Equal Weight • Strong Lock • MOD10 • Pair Collision</p>
+        <p class="subtitle">MOD10 F/G • Historical Match • Digit Frequency</p>
       </div>
       <div class="hero-seal">
         <span><i></i> LIVE</span>
@@ -26,8 +26,8 @@ app.innerHTML = `
         <small>ตลาด</small>
       </div>
       <div class="hero-footer">
-        <span>◆ PERCENT CORE FULL SYSTEM</span>
-        <span>LATEST DRAW ONLY</span>
+        <span>◆ FG HISTORY WIN6</span>
+        <span>F + G MUST MATCH</span>
       </div>
     </header>
 
@@ -45,7 +45,8 @@ app.innerHTML = `
         <label class="sr-only" for="marketSearch">ค้นหาตลาด</label>
         <div class="search-field">
           <span aria-hidden="true">⌕</span>
-          <input id="marketSearch" type="search" inputmode="search" autocomplete="off" placeholder="พิมพ์ชื่อตลาด เช่น ลาวพัฒนา" aria-controls="searchResults" aria-expanded="false" disabled>
+          <input id="marketSearch" type="search" inputmode="search" autocomplete="off"
+            placeholder="พิมพ์ชื่อตลาด เช่น ลาวพัฒนา" aria-controls="searchResults" aria-expanded="false" disabled>
           <button id="clearSearch" class="clear-search" type="button" aria-label="ล้างคำค้นหา" hidden>×</button>
         </div>
         <div id="searchResults" class="search-results hidden" role="listbox" aria-label="ผลการค้นหาตลาด"></div>
@@ -56,16 +57,16 @@ app.innerHTML = `
               <option>กำลังโหลดตลาด...</option>
             </select>
           </div>
-          <button id="refresh" class="icon-button" type="button" aria-label="โหลดผลล่าสุดใหม่" title="โหลดผลล่าสุดใหม่">↻</button>
+          <button id="refresh" class="icon-button" type="button" aria-label="คำนวณใหม่" title="คำนวณใหม่">↻</button>
         </div>
       </div>
-      <div id="status" class="status loading"><span></span>กำลังเชื่อมต่อ six-digit-thai-lao</div>
+      <div id="status" class="status loading"><span></span>กำลังเชื่อมต่อข้อมูลย้อนหลัง</div>
     </section>
 
     <section id="emptyState" class="empty-card">
       <div class="radar" aria-hidden="true"><span></span></div>
-      <strong>พร้อมเปิด PERCENT CORE</strong>
-      <p>เลือกตลาดเพื่อคำนวณจากผลล่าสุด 1 งวดเท่านั้น</p>
+      <strong>พร้อมเปิด FG HISTORY CORE</strong>
+      <p>เลือกตลาดเพื่อหา F/G จากผลล่าสุด แล้วคัดงวดย้อนหลังที่มี F และ G ครบทั้งคู่</p>
     </section>
 
     <section id="result" class="result hidden" aria-live="polite">
@@ -82,12 +83,12 @@ app.innerHTML = `
 
       <div class="result-grid">
         <article class="result-card rud-card">
-          <div class="card-label"><span>🔥</span><div><b>ตัวแรง / รอง</b><small>BASE RANKING</small></div></div>
-          <div id="rankPower" class="rud-numbers"></div>
+          <div class="card-label"><span>⚡</span><div><b>รูด FG</b><small>(บน 2 ตัว + ล่าง 2 ตัว) MOD10</small></div></div>
+          <div id="fgDigits" class="rud-numbers"></div>
         </article>
 
         <article class="result-card win-card">
-          <div class="card-label"><span>✦</span><div><b>WIN6 + ตัวที่ 7</b><small>STRONG LOCK • MOD10</small></div></div>
+          <div class="card-label"><span>✦</span><div><b>WIN6 + สำรอง</b><small>FG LOCK • MATCH FREQUENCY</small></div></div>
           <div id="win6" class="digit-row"></div>
           <p id="seventh" class="note"></p>
         </article>
@@ -95,23 +96,23 @@ app.innerHTML = `
 
       <article class="result-card double-card">
         <div class="double-analysis">
-          <div class="card-label"><span>🔥</span><div><b>คู่เด่น MOD10</b><small>19 • 28 • 37 • 46</small></div></div>
-          <strong id="keyPairs">—</strong>
-          <p>แสดงเฉพาะคู่ที่ระบบเลือกและสมาชิกทั้งสองตัวอยู่ใน WIN6 จริง</p>
+          <div class="card-label"><span>📚</span><div><b>ชุดย้อนหลังที่ผ่าน FG</b><small>ต้องมี F และ G พร้อมกัน</small></div></div>
+          <strong id="matchCount">—</strong>
+          <p id="matchPreview">—</p>
         </div>
         <div class="double-picks">
-          <small>ตัวที่ 7</small>
-          <div id="seventhBadge" class="double-numbers"></div>
+          <small>รองสถิติ</small>
+          <div id="secondary" class="double-numbers"></div>
         </div>
       </article>
 
       <article class="result-card pin-card">
         <div class="pin-header">
           <div>
-            <div class="card-label"><span>◎</span><div><b>เจาะ 2</b><small>PAIR COLLISION • 5 ชุด</small></div></div>
-            <p>เรียง formulaHits → occurrences → คะแนนเสริม</p>
+            <div class="card-label"><span>◎</span><div><b>เจาะ 2</b><small>FG + WIN6</small></div></div>
+            <p>เรียงจากจำนวนงวดที่คู่เลขอยู่ร่วมกันในชุด FG ที่ผ่าน</p>
           </div>
-          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกผล PERCENT CORE">คัดลอกชุด</button>
+          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกผล FG HISTORY CORE">คัดลอกชุด</button>
         </div>
         <div id="pin2" class="pair-row"></div>
       </article>
@@ -119,8 +120,8 @@ app.innerHTML = `
       <article class="result-card pin-card">
         <div class="pin-header">
           <div>
-            <div class="card-label"><span>🎯</span><div><b>เจาะ 3</b><small>PAIR COLLISION • TOP 3 + EXTRA 2</small></div></div>
-            <p>ใช้เลขไม่ซ้ำ และต้องมีคู่ชนจากสูตรอย่างน้อย 2 คู่</p>
+            <div class="card-label"><span>🎯</span><div><b>เจาะ 3 ปกติ</b><small>เลขไม่ซ้ำ • TOP 3 + EXTRA 2</small></div></div>
+            <p>คัดจาก FG + WIN6 + สำรอง โดยไม่สร้างเลขซ้ำในชุด 3 ตัว</p>
           </div>
         </div>
         <div id="pin3" class="pair-row"></div>
@@ -129,7 +130,7 @@ app.innerHTML = `
 
       <article class="result-card double-card">
         <div class="double-analysis">
-          <div class="card-label"><span>↻</span><div><b>Pattern จาก 8 สูตร</b><small>ADJACENT ONLY</small></div></div>
+          <div class="card-label"><span>↻</span><div><b>Pattern จากชุด FG ที่ผ่าน</b><small>HISTORY EVIDENCE</small></div></div>
           <strong id="doublePattern">—</strong>
           <p id="triplePattern">—</p>
         </div>
@@ -139,7 +140,7 @@ app.innerHTML = `
         </div>
       </article>
 
-      <p class="note">คำนวณจากผลล่าสุด 1 งวดเท่านั้น • ไม่มีการอ่านย้อนหลัง • ทุกสูตรและทุกตำแหน่งน้ำหนักเท่ากัน</p>
+      <p class="note">F=(หลักสิบ+หลักหน่วยของ 3 บน) mod10 • G=(2 ล่างบวกกัน) mod10 • ใช้เฉพาะงวดย้อนหลังที่มี F และ G อยู่พร้อมกัน แล้วนับความถี่เลข 0–9 เพื่อจัด WIN6</p>
     </section>
   </main>
 `
@@ -160,11 +161,12 @@ const els = {
   marketName: document.querySelector('#marketName'),
   sourceTop: document.querySelector('#sourceTop'),
   sourceBottom: document.querySelector('#sourceBottom'),
-  rankPower: document.querySelector('#rankPower'),
+  fgDigits: document.querySelector('#fgDigits'),
   win6: document.querySelector('#win6'),
   seventh: document.querySelector('#seventh'),
-  seventhBadge: document.querySelector('#seventhBadge'),
-  keyPairs: document.querySelector('#keyPairs'),
+  matchCount: document.querySelector('#matchCount'),
+  matchPreview: document.querySelector('#matchPreview'),
+  secondary: document.querySelector('#secondary'),
   pin2: document.querySelector('#pin2'),
   pin3: document.querySelector('#pin3'),
   pin3Extra: document.querySelector('#pin3Extra'),
@@ -261,7 +263,7 @@ function formatThaiDate(dateString) {
 }
 
 function pairItems(items, valueKey, meta) {
-  return items.map((item, index) => `
+  return (items || []).map((item, index) => `
     <div class="pair ${index === 0 ? 'primary' : ''}">
       <i>${String(index + 1).padStart(2, '0')}</i>
       <b>${item[valueKey]}</b>
@@ -276,34 +278,40 @@ function renderResult(marketName, analysis) {
   els.sourceTop.textContent = analysis.source.top3
   els.sourceBottom.textContent = analysis.source.bottom2
 
-  els.rankPower.innerHTML = `
-    <div class="rud-item main"><i aria-hidden="true"></i><b>${analysis.strong.join(' • ')}</b><small>🔥 ตัวแรง</small></div>
-    <div class="rud-item secondary"><i aria-hidden="true"></i><b>${analysis.secondary.join(' • ')}</b><small>⭐ รอง</small></div>
+  els.fgDigits.innerHTML = `
+    <div class="rud-item main"><i aria-hidden="true"></i><b>${analysis.fg.join(' • ')}</b><small>⚡ F • G</small></div>
   `
 
   els.win6.innerHTML = analysis.win6.map((digit) => `
     <span class="digit ${analysis.strong.includes(digit) ? 'locked' : ''}">${digit}</span>
   `).join('')
-  els.seventh.textContent = `ตัวที่ 7: ${analysis.seventh}`
-  els.seventhBadge.innerHTML = `<b>${analysis.seventh}</b>`
-  els.keyPairs.textContent = analysis.keyPairs.length ? analysis.keyPairs.join(' • ') : 'ไม่มี'
+  els.seventh.textContent = `สำรอง: ${analysis.seventh ?? '—'}`
+
+  els.matchCount.textContent = `${analysis.matchCount} งวด`
+  els.matchPreview.textContent = analysis.matchedHistory
+    .slice(0, 4)
+    .map((row) => `${row.top3}-${row.bottom2}`)
+    .join(' • ')
+  els.secondary.innerHTML = analysis.secondary.length
+    ? analysis.secondary.map((digit) => `<b>${digit}</b>`).join('')
+    : '<b>—</b>'
 
   els.pin2.innerHTML = pairItems(
     analysis.pin2,
     'pair',
-    (item) => `ชน ${item.formulaHits} สูตร • ${item.occurrences} ครั้ง`,
+    (item) => `ร่วม ${item.formulaHits} งวด • ${item.occurrences} ครั้ง`,
   )
 
   els.pin3.innerHTML = pairItems(
     analysis.pin3,
     'triple',
-    (item) => `ชนรวม ${item.formulaHits} สูตร`,
+    (item) => `ร่วม ${item.formulaHits} งวด`,
   )
 
   els.pin3Extra.innerHTML = pairItems(
     analysis.pin3Extra,
     'triple',
-    (item) => `เสริม • ชนรวม ${item.formulaHits} สูตร`,
+    (item) => `เสริม • ร่วม ${item.formulaHits} งวด`,
   )
 
   els.doublePattern.textContent = `🔄 เบิ้ล ${analysis.patterns.doubles.length ? analysis.patterns.doubles.join(' • ') : 'ไม่มี'}`
@@ -326,13 +334,13 @@ async function calculate() {
   const selected = markets.find((item) => item.market_key === marketKey)
   els.market.disabled = true
   els.refresh.disabled = true
-  setStatus('กำลังคำนวณ PERCENT CORE จากผลล่าสุด...', 'loading')
+  setStatus('กำลังหา FG และคัดสถิติย้อนหลัง...', 'loading')
 
   try {
     const source = await loadLatestResult(marketKey)
     const analysis = analyzePercentCore(source)
-    renderResult(selected.market_name, analysis)
-    setStatus(`พร้อมแล้ว • ผลล่าสุด ${formatThaiDate(source.draw_date)} • ไม่อ่านย้อนหลัง`, 'ready')
+    renderResult(selected?.market_name || marketKey, analysis)
+    setStatus(`พร้อม • ผลล่าสุด ${formatThaiDate(source.draw_date)} • พบชุด FG ${analysis.matchCount} งวด`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'โหลดข้อมูลไม่สำเร็จ', 'error')
@@ -359,12 +367,12 @@ async function initialize() {
 
     els.market.replaceChildren(placeholder, ...options)
     els.marketTotals.forEach((element) => { element.textContent = markets.length })
-    const lao = markets.find((item) => item.market_name === 'ลาวพัฒนา')
-    if (lao) els.market.value = lao.market_key
+    const preferred = markets.find((item) => item.market_name === 'ลาวพัฒนา') || markets[0]
+    if (preferred) els.market.value = preferred.market_key
     els.marketSearch.disabled = false
     els.market.disabled = false
-    setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด • PERCENT CORE`, 'ready')
-    if (lao) await calculate()
+    setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด • FG HISTORY CORE`, 'ready')
+    if (preferred) await calculate()
   } catch (error) {
     console.error(error)
     els.market.innerHTML = '<option>เชื่อมต่อข้อมูลไม่สำเร็จ</option>'
