@@ -62,6 +62,11 @@ app.innerHTML = `
         <div id="pin2Bottom" class="struct-picks"></div>
       </article>
 
+      <article class="struct-card pattern-card">
+        <div class="struct-card-head"><small>👯 เบิ้ล 2 ตัว</small><span>จากตัวเด่น / รูด 2 ตัว</span></div>
+        <div id="pin2Double" class="struct-picks"></div>
+      </article>
+
       <article class="struct-card">
         <div class="struct-card-head"><small>🎯 เจาะ 3 ปกติ</small><span>1 ชุดเลข = 1 ช่อง • 3 หลักไม่ซ้ำ</span></div>
         <div id="pin3Normal" class="struct-picks triples"></div>
@@ -112,6 +117,7 @@ const els = {
   marketPulse: document.querySelector('#marketPulse'),
   pin2Top: document.querySelector('#pin2Top'),
   pin2Bottom: document.querySelector('#pin2Bottom'),
+  pin2Double: document.querySelector('#pin2Double'),
   pin3Normal: document.querySelector('#pin3Normal'),
   pin3Double: document.querySelector('#pin3Double'),
   doubleSignal: document.querySelector('#doubleSignal'),
@@ -176,6 +182,14 @@ function renderPicks(target, items, key) {
       <b>${item[key]}</b><small>${item.score}</small>
     </span>
   `).join('')
+}
+
+function twoDigitDoubles(analysis) {
+  const scoreByDigit = new Map(analysis.rankings.fusion.map((item) => [item.digit, item.score]))
+  return analysis.rud.map((digit) => ({
+    pair: `${digit}${digit}`,
+    score: scoreByDigit.get(digit) ?? 0,
+  }))
 }
 
 function getSignal(analysis, type) {
@@ -284,6 +298,7 @@ function renderResult(marketName, analysis) {
   renderPulse(analysis)
   renderPicks(els.pin2Top, analysis.pin2Top, 'pair')
   renderPicks(els.pin2Bottom, analysis.pin2Bottom, 'pair')
+  renderPicks(els.pin2Double, twoDigitDoubles(analysis), 'pair')
   renderPicks(els.pin3Normal, analysis.pin3Normal, 'triple')
   renderPicks(els.pin3Double, analysis.pin3Double, 'triple')
   renderEvidence(analysis)
@@ -304,7 +319,7 @@ async function calculate() {
     const history = await loadRecentResults(marketKey, 30)
     const analysis = analyzeStructuralProbabilityV5(history, { includeBacktest: true, maxBacktest: 10 })
     renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • Frequency ${analysis.frequencyWindow} งวด • Pattern ใช้ข้อมูล ${analysis.sampleSize} งวด • v5.1`, 'ready')
+    setStatus(`พร้อม • Frequency ${analysis.frequencyWindow} งวด • Pattern ใช้ข้อมูล ${analysis.sampleSize} งวด • v5.3`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'คำนวณไม่สำเร็จ', 'error')
@@ -338,6 +353,7 @@ function copyText() {
     '',
     `🎯 เจาะ 2 บน: ${current.pin2Top.map((item) => item.pair).join(' • ')}`,
     `🎯 เจาะ 2 ล่าง: ${current.pin2Bottom.map((item) => item.pair).join(' • ')}`,
+    `👯 เบิ้ล 2 ตัว: ${current.rud.map((digit) => `${digit}${digit}`).join(' • ')}`,
     `🎯 เจาะ 3 ปกติ: ${current.pin3Normal.map((item) => item.triple).join(' • ')}`,
     `👯 เจาะ 3 เบิ้ล: ${current.pin3Double.map((item) => item.triple).join(' • ')}`,
   ].join('\n')
