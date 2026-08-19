@@ -1,3 +1,5 @@
+import { analyzePercentCore } from './formula.js'
+
 const NATURAL_FLOW = {
   0: [1, 3],
   1: [2, 7],
@@ -127,14 +129,11 @@ export function buildFlowWin6(ranking, pointDraws) {
   const win6 = []
   const used = new Set()
 
-  // เรียงเลขหลักจากคะแนน FLOW ก่อน โดยให้รูด 2 ตัวอยู่ด้านหน้าเสมอ
   ranking.forEach((item) => {
     if (win6.length >= 6) return
     if (pushUnique(win6, item.digit)) used.add(item.digit)
   })
 
-  // ถ้าแต้ม 6 ช่องมีเลขซ้ำ ให้แทนช่องซ้ำนั้นด้วย "เลขไหลธรรมชาติ"
-  // ไล่จากคู่ไหลชั้นแรกก่อน แล้วค่อยไหลต่อเป็นชั้นถัดไปจนเจอเลขที่ยังไม่อยู่ใน WIN6
   ranking.forEach((item) => {
     const duplicateCount = Math.max(0, (item.count || 1) - 1)
     for (let index = 0; index < duplicateCount && win6.length < 6; index += 1) {
@@ -143,8 +142,6 @@ export function buildFlowWin6(ranking, pointDraws) {
     }
   })
 
-  // ถ้ายังไม่ครบ 6 ให้ใช้แต้มชนบน+ล่างของงวดล่าสุดก่อน
-  // หากแต้มชนซ้ำ ก็ใช้เลขไหลธรรมชาติของแต้มชนนั้นแทนทันที
   ;[...pointDraws].reverse().forEach((draw) => {
     if (win6.length >= 6) return
 
@@ -157,8 +154,6 @@ export function buildFlowWin6(ranking, pointDraws) {
     if (replacement !== null && pushUnique(win6, replacement)) used.add(replacement)
   })
 
-  // Safety fill: WIN6 ต้องมี 6 ตัวไม่ซ้ำกันเสมอ
-  // ใช้เลขไหลธรรมชาติจากลำดับแรงก่อน จนครบ 6 ตัว
   let safetyIndex = 0
   while (win6.length < 6 && safetyIndex < 20) {
     const seed = win6[safetyIndex % Math.max(1, win6.length)] ?? ranking[0]?.digit ?? 0
@@ -205,7 +200,7 @@ export function buildFlowPin3(rud, win6) {
   return { pin3, pin3Extra: extras.slice(0, 2) }
 }
 
-export function analyzeFlowCore(history) {
+export function analyzePureFlowCore(history) {
   if (!Array.isArray(history) || history.length < 3) {
     throw new Error('FLOW CORE ต้องใช้ผลล่าสุด 3 งวด')
   }
@@ -232,5 +227,71 @@ export function analyzeFlowCore(history) {
     pin2: buildFlowPin2(rud, win6),
     pin3,
     pin3Extra,
+  }
+}
+
+export function buildFusionWin6(flow, percent) {
+  const win6 = [...percent.win6]
+  const percentByDigit = new Map(percent.ranking.map((item) => [item.digit, item]))
+  const collisions = win6.filter((digit) => flow.win6.includes(digit))
+  const protectedDigits = new Set([...collisions, ...percent.strong])
+  const rescues = []
+
+  flow.rud.forEach((digit) => {
+    if (win6.includes(digit)) return
+
+    const candidateRank = percentByDigit.get(digit)?.rank ?? 99
+    const victim = win6
+      .map((selectedDigit, index) => ({
+        digit: selectedDigit,
+        index,
+        rank: percentByDigit.get(selectedDigit)?.rank ?? 99,
+      }))
+      .filter((item) => !protectedDigits.has(item.digit))
+      .sort((left, right) => right.rank - left.rank || right.index - left.index)
+      .find((item) => candidateRank < item.rank)
+
+    if (!victim) return
+
+    win6[victim.index] = digit
+    protectedDigits.add(digit)
+    rescues.push({
+      digit,
+      replaced: victim.digit,
+      candidateRank,
+      replacedRank: victim.rank,
+    })
+  })
+
+  return {
+    win6,
+    collisions,
+    rescues,
+  }
+}
+
+export function analyzeFlowCore(history) {
+  const flow = analyzePureFlowCore(history)
+  const percent = analyzePercentCore(flow.source)
+  const fusion = buildFusionWin6(flow, percent)
+  const { pin3, pin3Extra } = buildFlowPin3(flow.rud, fusion.win6)
+
+  return {
+    engine: 'XGEN FUSION — PERCENT Base + FLOW Rescue',
+    source: flow.source,
+    draws: flow.draws,
+    pointSequence: flow.pointSequence,
+    crossSequence: flow.crossSequence,
+    ranking: flow.ranking,
+    rud: flow.rud,
+    win6: fusion.win6,
+    pin2: buildFlowPin2(flow.rud, fusion.win6),
+    pin3,
+    pin3Extra,
+    flowWin6: flow.win6,
+    percentWin6: percent.win6,
+    collisions: fusion.collisions,
+    rescues: fusion.rescues,
+    percentRanking: percent.ranking,
   }
 }
