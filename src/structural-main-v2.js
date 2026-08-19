@@ -1,7 +1,7 @@
 import '@fontsource-variable/noto-sans-thai'
 import './style.css'
 import './structural.css'
-import { analyzeStructuralProbabilityV2 } from './structural-probability-v2.js'
+import { analyzeStructuralProbabilityV3 } from './structural-probability-v3.js'
 import { loadMarkets, loadRecentResults } from './supabase.js'
 
 const app = document.querySelector('#app')
@@ -47,20 +47,14 @@ app.innerHTML = `
           <small>🔥 ตัวเด่น / รูด</small>
           <div id="rud" class="struct-big-digits"></div>
         </article>
-        <article class="struct-card accent">
+        <article class="struct-card accent win6-main-card">
           <small>✨ WIN6 รวม</small>
           <div id="win6" class="struct-digits"></div>
-        </article>
-      </div>
-
-      <div class="struct-grid two">
-        <article class="struct-card">
-          <small>WIN6 บน</small>
-          <div id="topWin6" class="struct-digits compact"></div>
-        </article>
-        <article class="struct-card">
-          <small>WIN6 ล่าง</small>
-          <div id="bottomWin6" class="struct-digits compact"></div>
+          <div class="win6-reserve-row">
+            <span>🛡️ Reserve</span>
+            <b id="reserve">—</b>
+            <small id="reserveSource"></small>
+          </div>
         </article>
       </div>
 
@@ -96,7 +90,7 @@ app.innerHTML = `
       </article>
 
       <button id="copy" class="struct-copy" type="button">คัดลอกชุด</button>
-      <p class="struct-note">Pattern % เป็น Structural Rate จากข้อมูลย้อนหลัง ไม่ใช่เปอร์เซ็นต์การันตีผล</p>
+      <p class="struct-note">WIN6 บน/ล่างยังคำนวณอยู่เบื้องหลังเพื่อหา Reserve และใช้กับชุดเจาะ • Pattern % เป็น Structural Rate ไม่ใช่เปอร์เซ็นต์การันตีผล</p>
     </section>
   </main>
 `
@@ -116,8 +110,8 @@ const els = {
   patternEvidence: document.querySelector('#patternEvidence'),
   rud: document.querySelector('#rud'),
   win6: document.querySelector('#win6'),
-  topWin6: document.querySelector('#topWin6'),
-  bottomWin6: document.querySelector('#bottomWin6'),
+  reserve: document.querySelector('#reserve'),
+  reserveSource: document.querySelector('#reserveSource'),
   pin2Top: document.querySelector('#pin2Top'),
   pin2Bottom: document.querySelector('#pin2Bottom'),
   pin3: document.querySelector('#pin3'),
@@ -259,6 +253,18 @@ function renderRanking(analysis) {
   `).join('')
 }
 
+function renderReserve(analysis) {
+  els.reserve.textContent = analysis.reserve ?? '—'
+  if (analysis.reserve === null || analysis.reserve === undefined) {
+    els.reserveSource.textContent = 'ไม่มีตัวเพิ่ม'
+    return
+  }
+  const sourceText = analysis.reserveFallback
+    ? 'อันดับถัดไปจากคะแนนรวม'
+    : `คัดจาก ${analysis.reserveSources.join(' + ')}`
+  els.reserveSource.textContent = `${sourceText} • score ${analysis.reserveScore}`
+}
+
 function renderResult(marketName, analysis) {
   current = { marketName, ...analysis }
   els.marketName.textContent = marketName
@@ -268,8 +274,7 @@ function renderResult(marketName, analysis) {
   renderPatterns(analysis)
   renderDigits(els.rud, analysis.rud, analysis.rud)
   renderDigits(els.win6, analysis.win6, analysis.rud)
-  renderDigits(els.topWin6, analysis.topWin6, analysis.rud)
-  renderDigits(els.bottomWin6, analysis.bottomWin6, analysis.rud)
+  renderReserve(analysis)
   renderPicks(els.pin2Top, analysis.pin2Top, 'pair')
   renderPicks(els.pin2Bottom, analysis.pin2Bottom, 'pair')
   renderPicks(els.pin3, analysis.pin3, 'triple')
@@ -289,9 +294,9 @@ async function calculate() {
 
   try {
     const history = await loadRecentResults(marketKey, 30)
-    const analysis = analyzeStructuralProbabilityV2(history, { includeBacktest: true, maxBacktest: 10 })
+    const analysis = analyzeStructuralProbabilityV3(history, { includeBacktest: true, maxBacktest: 10 })
     renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • ใช้ข้อมูล ${analysis.sampleSize} งวด • Pattern Engine v2`, 'ready')
+    setStatus(`พร้อม • ใช้ข้อมูล ${analysis.sampleSize} งวด • WIN6 + Reserve`, 'ready')
   } catch (error) {
     console.error(error)
     setStatus(error.message || 'คำนวณไม่สำเร็จ', 'error')
@@ -314,6 +319,7 @@ function copyText() {
     `🔥 ตัวเด่น: ${current.rud.join(' • ')}`,
     `⚡ รูด: ${current.rud.join(' • ')}`,
     `✨ WIN6: ${current.win6.join(' • ')}`,
+    `🛡️ Reserve: ${current.reserve ?? '—'}`,
     '',
     `🚨 เบิ้ล: ${signalStatus('DOUBLE')} • หาม: ${signalStatus('HAM')} • ตอง: ${signalStatus('TRIPLE')} • พี่น้อง: ${signalStatus('SIBLING')}`,
     '',
