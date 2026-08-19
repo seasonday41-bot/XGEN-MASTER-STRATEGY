@@ -9,7 +9,7 @@ const history = [
 ]
 
 describe('FLOW CORE copy', () => {
-  it('จัดข้อความตามชุดรูด WIN6 เจาะ 2 เจาะ 3', () => {
+  it('คัดลอกเฉพาะผลล่าสุด รูด WIN6 เจาะ 2 และเจาะ 3', () => {
     const result = {
       marketName: 'ลาว Extra',
       ...analyzeFlowCore(history),
@@ -17,10 +17,7 @@ describe('FLOW CORE copy', () => {
 
     expect(formatFlowCopyText(result)).toBe([
       '🏷️ ตลาด ลาว Extra',
-      '📊 3 งวดล่าสุด',
-      '272-39 → 9 • 2',
-      '112-01 → 3 • 1',
-      '968-93 → 4 • 2',
+      '📊 ผลล่าสุด 968-93',
       '',
       '⚡ รูด 2 • 4',
       '✨ WIN6 2 • 4 • 3 • 1 • 9 • 6',
