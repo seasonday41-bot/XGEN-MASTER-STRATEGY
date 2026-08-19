@@ -2,28 +2,35 @@ import { describe, expect, it } from 'vitest'
 import { analyzePercentCore } from './formula.js'
 import { formatCopyText } from './copy.js'
 
-describe('PERCENT CORE copy', () => {
-  it('จัดข้อความ Copy ตามรูปแบบ FULL SYSTEM', () => {
+describe('FG HISTORY CORE copy', () => {
+  it('จัดข้อความ Copy ตามผล FG + ความถี่ย้อนหลัง', () => {
     const result = {
       marketName: 'ตลาดทดสอบ',
-      ...analyzePercentCore({ top3: '978', bottom2: '63' }),
+      ...analyzePercentCore({
+        top3: '294',
+        bottom2: '73',
+        history: [
+          { draw_date: '2026-08-14', top3: '039', bottom2: '61' },
+          { draw_date: '2026-08-05', top3: '305', bottom2: '37' },
+        ],
+      }),
     }
 
     expect(formatCopyText(result)).toBe([
       '🏷️ ตลาด ตลาดทดสอบ',
-      '📊 ผลล่าสุด 978-63',
-      '🔥 ตัวแรง 5 • 8',
-      '⭐ รอง 2 • 9',
-      '✨ WIN6 5 • 8 • 2 • 3 • 7 • 9 (0)',
-      '🔥 คู่เด่น 28 • 37',
+      '📊 ผลล่าสุด 294-73',
+      '⚡ รูด FG 3 • 0',
+      '⭐ รองสถิติ 9 • 6',
+      '✨ WIN6 3 • 0 • 9 • 6 • 1 • 5 (7)',
+      '📚 ชุดย้อนหลังที่มี FG ครบ 2 งวด',
       '',
-      '🎯 เจาะ 2 = 28 • 58 • 59 • 35 • 08',
-      '🎯 เจาะ 3 = 258 • 058 • 358',
-      '⭐ เจาะ 3 เสริม 589 • 028',
+      '🎯 เจาะ 2 = 30 • 03 • 39 • 36 • 31',
+      '🎯 เจาะ 3 = 309 • 306 • 301',
+      '⭐ เจาะ 3 เสริม 305 • 307',
       '',
-      '🔄 เบิ้ล 88 • 00',
+      '🔄 เบิ้ล ไม่มี',
       '👑 ตอง ไม่มี',
-      '👯 พี่น้อง 56 • 78 • 01 • 89 • 34',
+      '👯 พี่น้อง ไม่มี',
     ].join('\n'))
   })
 })
