@@ -1,67 +1,83 @@
 import { describe, expect, it } from 'vitest'
 import {
   analyzePercentCore,
-  calculateFormulaResults,
-  detectPatterns,
-  rankDigits,
+  calculateFG,
+  matchHistoryByFG,
+  rankMatchedDigits,
 } from './formula.js'
 
-describe('PERCENT CORE', () => {
-  it('คำนวณ 8 สูตรของ 978-63 ได้ตรงตำรา', () => {
-    expect(calculateFormulaResults('978', '63')).toEqual([
-      '1956',
-      '8802',
-      '3528',
-      '7287',
-      '10065',
-      '293589',
-      '4395',
-      '75088',
+describe('FG HISTORY CORE', () => {
+  it('หา F และ G จาก 2 ตัวบน/2 ตัวล่างด้วย mod10', () => {
+    expect(calculateFG('294', '73')).toEqual({ f: 3, g: 0, digits: [3, 0] })
+  })
+
+  it('คัดเฉพาะงวดที่มี F และ G อยู่พร้อมกันในชุดเดียว', () => {
+    const history = [
+      { draw_date: '2026-08-14', top3: '039', bottom2: '61' },
+      { draw_date: '2026-08-05', top3: '305', bottom2: '37' },
+      { draw_date: '2026-08-04', top3: '751', bottom2: '48' },
+      { draw_date: '2026-08-03', top3: '226', bottom2: '40' },
+    ]
+
+    expect(matchHistoryByFG(history, 3, 0).map((row) => `${row.top3}-${row.bottom2}`))
+      .toEqual(['039-61', '305-37'])
+  })
+
+  it('นับความถี่ทุกหลักและใช้ความใกล้ปัจจุบันเป็นตัวตัดสินเมื่อคะแนนเท่ากัน', () => {
+    const ranking = rankMatchedDigits([
+      { draw_date: '2026-08-14', top3: '039', bottom2: '61' },
+      { draw_date: '2026-08-05', top3: '305', bottom2: '37' },
+    ])
+
+    expect(ranking.map((item) => [item.digit, item.occurrences])).toEqual([
+      [3, 3],
+      [0, 2],
+      [9, 1],
+      [6, 1],
+      [1, 1],
+      [5, 1],
+      [7, 1],
     ])
   })
 
-  it('จัด Ranking แบบ Equal Weight ได้ตัวแรง 5-8 และรอง 2-9', () => {
-    const ranking = rankDigits(calculateFormulaResults('978', '63'))
-    expect(ranking.slice(0, 4).map((item) => item.digit)).toEqual([5, 8, 2, 9])
-    expect(ranking.slice(0, 2).map((item) => item.score)).toEqual([12, 12])
-  })
-
-  it('Strong Lock + MOD10 สร้าง WIN6 และตัวที่ 7 ตรงตัวอย่าง', () => {
-    const result = analyzePercentCore({ top3: '978', bottom2: '63' })
-    expect(result.strong).toEqual([5, 8])
-    expect(result.secondary).toEqual([2, 9])
-    expect(result.win6).toEqual([5, 8, 2, 3, 7, 9])
-    expect(result.seventh).toBe(0)
-    expect(result.keyPairs).toEqual(['28', '37'])
-  })
-
-  it('Pair Collision คัดเจาะ 2 ตาม formulaHits ก่อน', () => {
-    const result = analyzePercentCore({ top3: '978', bottom2: '63' })
-    expect(result.pin2.map((item) => item.pair)).toEqual(['28', '58', '59', '35', '08'])
-    expect(result.pin2.map((item) => item.formulaHits)).toEqual([4, 3, 3, 3, 2])
-  })
-
-  it('คัดเจาะ 3 และชุดเสริมตรงตัวอย่าง', () => {
-    const result = analyzePercentCore({ top3: '978', bottom2: '63' })
-    expect(result.pin3.map((item) => item.triple)).toEqual(['258', '058', '358'])
-    expect(result.pin3Extra.map((item) => item.triple)).toEqual(['589', '028'])
-  })
-
-  it('ตรวจเบิ้ล ตอง และพี่น้องจาก 8 สูตรเท่านั้น', () => {
-    expect(detectPatterns(calculateFormulaResults('978', '63'))).toEqual({
-      doubles: ['88', '00'],
-      triples: [],
-      siblings: ['56', '78', '01', '89', '34'],
-    })
-  })
-
-  it('รับผลล่าสุดเพียง 1 งวดโดยไม่ต้องมี history', () => {
+  it('ล็อก FG ก่อน แล้วเติม WIN6 จากความถี่ของงวดที่ผ่านเท่านั้น', () => {
     const result = analyzePercentCore({
-      draw_date: '2026-08-19',
-      top3: '978',
-      bottom2: '63',
+      draw_date: '2026-08-18',
+      top3: '294',
+      bottom2: '73',
+      history: [
+        { draw_date: '2026-08-14', top3: '039', bottom2: '61' },
+        { draw_date: '2026-08-05', top3: '305', bottom2: '37' },
+        { draw_date: '2026-08-04', top3: '751', bottom2: '48' },
+      ],
     })
-    expect(result.source.draw_date).toBe('2026-08-19')
-    expect(result.formulaResults).toHaveLength(8)
+
+    expect(result.fg).toEqual([3, 0])
+    expect(result.matchCount).toBe(2)
+    expect(result.win6).toEqual([3, 0, 9, 6, 1, 5])
+    expect(result.seventh).toBe(7)
+    expect(result.strong).toEqual([3, 0])
+    expect(result.secondary).toEqual([9, 6])
+  })
+
+  it('ไม่ยอมเอางวดที่มี F หรือ G เพียงตัวเดียวมาปน', () => {
+    expect(() => analyzePercentCore({
+      top3: '448',
+      bottom2: '17',
+      history: [
+        { draw_date: '2026-08-13', top3: '483', bottom2: '69' },
+        { draw_date: '2026-08-11', top3: '240', bottom2: '56' },
+      ],
+    })).toThrow('ไม่พบงวดย้อนหลังที่มี FG 28')
+  })
+
+  it('ไม่สร้าง WIN6 จากเลขที่ไม่เคยอยู่ในชุด FG ที่ผ่าน', () => {
+    expect(() => analyzePercentCore({
+      top3: '574',
+      bottom2: '25',
+      history: [
+        { draw_date: '2026-08-07', top3: '552', bottom2: '49' },
+      ],
+    })).toThrow('ยังสร้าง WIN6 ไม่ได้')
   })
 })
