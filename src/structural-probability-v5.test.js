@@ -25,9 +25,31 @@ const history = [
   ['2026-07-30', '106', '64'],
 ].map(([draw_date, top3, bottom2]) => ({ draw_date, top3, bottom2 }))
 
+const chinaAfternoon = [
+  ['2026-08-18', '250', '77'],
+  ['2026-08-17', '427', '96'],
+  ['2026-08-14', '431', '87'],
+  ['2026-08-13', '944', '99'],
+  ['2026-08-12', '443', '99'],
+  ['2026-08-11', '944', '52'],
+  ['2026-08-10', '696', '95'],
+  ['2026-08-07', '101', '89'],
+  ['2026-08-06', '012', '08'],
+  ['2026-08-05', '420', '49'],
+  ['2026-08-04', '571', '42'],
+  ['2026-08-03', '829', '64'],
+  ['2026-07-31', '893', '13'],
+  ['2026-07-30', '580', '64'],
+  ['2026-07-29', '844', '76'],
+  ['2026-07-28', '968', '05'],
+  ['2026-07-27', '873', '05'],
+  ['2026-07-24', '468', '63'],
+  ['2026-07-23', '331', '87'],
+].map(([draw_date, top3, bottom2]) => ({ draw_date, top3, bottom2 }))
+
 const canonical = (value) => String(value).split('').sort().join('')
 
-describe('STRUCTURAL v5.1 five-draw frequency', () => {
+describe('STRUCTURAL v5.2 position candidate gate', () => {
   it('uses only the latest five draws for frequency', () => {
     const result = analyzeStructuralProbabilityV5(history, { includeBacktest: false })
     expect(result.frequencyWindow).toBe(5)
@@ -48,6 +70,49 @@ describe('STRUCTURAL v5.1 five-draw frequency', () => {
     expect(result.sampleSize).toBe(history.length)
     expect(result.transition.samples).toBeGreaterThanOrEqual(0)
     expect(result.mirror.samples).toBeGreaterThanOrEqual(0)
+  })
+
+  it('builds six-digit gates independently for every number position', () => {
+    const result = analyzeStructuralProbabilityV5(chinaAfternoon, { includeBacktest: false })
+    expect(result.version).toBe('v5.2-position-candidate-gate')
+    expect(result.positionGateSize).toBe(6)
+    expect(result.positionGates.top.hundreds).toHaveLength(6)
+    expect(result.positionGates.top.tens).toHaveLength(6)
+    expect(result.positionGates.top.units).toHaveLength(6)
+    expect(result.positionGates.bottom.tens).toHaveLength(6)
+    expect(result.positionGates.bottom.units).toHaveLength(6)
+  })
+
+  it('keeps the 015-35 digits alive in their own positions before final pick ranking', () => {
+    const result = analyzeStructuralProbabilityV5(chinaAfternoon, { includeBacktest: false })
+    expect(result.positionGates.top.hundreds).toContain(0)
+    expect(result.positionGates.top.tens).toContain(1)
+    expect(result.positionGates.top.units).toContain(5)
+    expect(result.positionGates.bottom.tens).toContain(3)
+    expect(result.positionGates.bottom.units).toContain(5)
+  })
+
+  it('only creates final picks from digits allowed by each position gate', () => {
+    const result = analyzeStructuralProbabilityV5(chinaAfternoon, { includeBacktest: false })
+    const topTens = new Set(result.positionGates.top.tens)
+    const topUnits = new Set(result.positionGates.top.units)
+    const bottomTens = new Set(result.positionGates.bottom.tens)
+    const bottomUnits = new Set(result.positionGates.bottom.units)
+    const hundreds = new Set(result.positionGates.top.hundreds)
+
+    result.pin2Top.forEach(({ pair }) => {
+      expect(topTens.has(Number(pair[0]))).toBe(true)
+      expect(topUnits.has(Number(pair[1]))).toBe(true)
+    })
+    result.pin2Bottom.forEach(({ pair }) => {
+      expect(bottomTens.has(Number(pair[0]))).toBe(true)
+      expect(bottomUnits.has(Number(pair[1]))).toBe(true)
+    })
+    result.pin3Normal.forEach(({ triple }) => {
+      expect(hundreds.has(Number(triple[0]))).toBe(true)
+      expect(topTens.has(Number(triple[1]))).toBe(true)
+      expect(topUnits.has(Number(triple[2]))).toBe(true)
+    })
   })
 
   it('classifies all digits into market pulse states', () => {
