@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { analyzeStructuralProbabilityV6, selectMod0Win6FromRanking } from './structural-probability-v6.js'
+import {
+  analyzeStructuralProbabilityV6,
+  selectMod0Win6FromRanking,
+  selectWin7RescueDigit,
+} from './structural-probability-v6.js'
 import { classifyStructuralPatternV2 } from './structural-probability-v2.js'
 
 const history = [
@@ -38,7 +42,7 @@ function matchesPattern(triple, type) {
   return p.category === 'NORMAL'
 }
 
-describe('STRUCTURAL v6.1 WIN6 MOD0 pattern picks', () => {
+describe('STRUCTURAL v6.2 WIN7 rescue pattern picks', () => {
   it('reproduces the ranked MOD0 example with minimum replacement', () => {
     const ranking = [0, 6, 5, 7, 9, 4, 1, 8, 3, 2]
       .map((digit, index) => ({ digit, score: 100 - index }))
@@ -53,31 +57,41 @@ describe('STRUCTURAL v6.1 WIN6 MOD0 pattern picks', () => {
     expect(result.reserve.sum % 10).toBe(0)
   })
 
-  it('uses MOD0 primary as the visible WIN6 and keeps a MOD0 reserve', () => {
-    const result = analyzeStructuralProbabilityV6(history, { includeBacktest: false })
-    expect(result.version).toBe('v6.1-win6-mod0-pattern-picks')
-    expect(result.pickPolicy).toBe('WIN6_MOD0_PATTERN_ONLY')
-    expect(result.win6).toHaveLength(6)
-    expect(result.win6Mod0Reserve).toHaveLength(6)
-    expect(sum(result.win6) % 10).toBe(0)
-    expect(sum(result.win6Mod0Reserve) % 10).toBe(0)
-    expect(result.baseWin6).toHaveLength(6)
+  it('chooses the highest-ranked digit outside MOD0 primary as rescue', () => {
+    const ranking = [9, 6, 4, 1, 3, 7, 0, 8, 5, 2]
+      .map((digit, index) => ({ digit, score: 100 - index }))
+    expect(selectWin7RescueDigit(ranking, [9, 6, 4, 1, 3, 7])).toBe(0)
   })
 
-  it('builds every 2-digit pick only from MOD0 primary WIN6', () => {
+  it('keeps six MOD0 digits and adds one rescue digit as WIN7', () => {
     const result = analyzeStructuralProbabilityV6(history, { includeBacktest: false })
-    const win = new Set(result.win6.map(String))
+    const expectedRescue = result.rankings.fusion.find((item) => !result.win6.includes(item.digit))?.digit ?? null
+
+    expect(result.version).toBe('v6.2-win7-rescue-pattern-picks')
+    expect(result.pickPolicy).toBe('WIN7_RESCUE_PATTERN_ONLY')
+    expect(result.win6).toHaveLength(6)
+    expect(sum(result.win6) % 10).toBe(0)
+    expect(result.rescueDigit).toBe(expectedRescue)
+    expect(result.win7).toEqual([...result.win6, result.rescueDigit])
+    expect(result.win7).toHaveLength(7)
+    expect(new Set(result.win7).size).toBe(7)
+    expect(result.pickPool).toEqual(result.win7)
+  })
+
+  it('allows all 7 digits, including rescue, to be used by 2-digit picks', () => {
+    const result = analyzeStructuralProbabilityV6(history, { includeBacktest: false })
+    const pool = new Set(result.win7.map(String))
     ;[...result.pin2Top, ...result.pin2Bottom].forEach(({ pair }) => {
-      pair.split('').forEach((digit) => expect(win.has(digit)).toBe(true))
+      pair.split('').forEach((digit) => expect(pool.has(digit)).toBe(true))
     })
   })
 
-  it('builds every 3-digit pick from MOD0 primary WIN6 and selected pattern', () => {
+  it('builds every 3-digit pick from WIN7 and selected pattern', () => {
     const result = analyzeStructuralProbabilityV6(history, { includeBacktest: false })
-    const win = new Set(result.win6.map(String))
+    const pool = new Set(result.win7.map(String))
     expect(result.pin3Pattern.length).toBeGreaterThan(0)
     result.pin3Pattern.forEach(({ triple }) => {
-      triple.split('').forEach((digit) => expect(win.has(digit)).toBe(true))
+      triple.split('').forEach((digit) => expect(pool.has(digit)).toBe(true))
       expect(matchesPattern(triple, result.pickPattern.type)).toBe(true)
     })
   })
@@ -89,13 +103,14 @@ describe('STRUCTURAL v6.1 WIN6 MOD0 pattern picks', () => {
     expect(new Set(result.pin3Pattern.map((item) => canonical(item.triple))).size).toBe(result.pin3Pattern.length)
   })
 
-  it('runs no-lookahead comparison of base WIN6 versus MOD0', () => {
+  it('runs no-lookahead comparison for base, MOD0 and WIN7 rescue coverage', () => {
     const result = analyzeStructuralProbabilityV6(history, { includeBacktest: true, maxBacktest: 10 })
     expect(result.backtest.samples).toBe(10)
     const keys = [
       'baseTop3', 'baseTop2', 'baseTop1',
-      'mod0Top3', 'mod0Top2', 'mod0Top1', 'mod0EitherTop3',
-      'win6TopFull', 'win6BottomFull',
+      'mod0Top3', 'mod0Top2', 'mod0Top1',
+      'win7Top3', 'win7Top2', 'win7Top1',
+      'mod0EitherTop3', 'win6TopFull', 'win7TopFull', 'win6BottomFull', 'win7BottomFull',
       'pin2TopPair', 'pin2BottomPair', 'pin3PatternPermutation', 'patternTypeHit',
     ]
     keys.forEach((key) => {
@@ -104,6 +119,6 @@ describe('STRUCTURAL v6.1 WIN6 MOD0 pattern picks', () => {
     })
     expect(Object.values(result.backtest.topCoverage.base).reduce((a, b) => a + b, 0)).toBe(10)
     expect(Object.values(result.backtest.topCoverage.mod0Primary).reduce((a, b) => a + b, 0)).toBe(10)
-    expect(Object.values(result.backtest.topCoverage.mod0Either).reduce((a, b) => a + b, 0)).toBe(10)
+    expect(Object.values(result.backtest.topCoverage.win7).reduce((a, b) => a + b, 0)).toBe(10)
   })
 })
