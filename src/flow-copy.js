@@ -1,12 +1,7 @@
-function rowText(draw) {
-  return `${draw.top3}-${draw.bottom2} → ${draw.topPoint} • ${draw.bottomPoint}`
-}
-
 export function formatFlowCopyText(result) {
   return [
     `🏷️ ตลาด ${result.marketName}`,
-    '📊 3 งวดล่าสุด',
-    ...result.draws.map(rowText),
+    `📊 ผลล่าสุด ${result.source.top3}-${result.source.bottom2}`,
     '',
     `⚡ รูด ${result.rud.join(' • ')}`,
     `✨ WIN6 ${result.win6.join(' • ')}`,
