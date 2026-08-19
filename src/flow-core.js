@@ -1,3 +1,16 @@
+const NATURAL_FLOW = {
+  0: [1, 3],
+  1: [2, 7],
+  2: [3, 4],
+  3: [4, 6],
+  4: [5, 7],
+  5: [6, 8],
+  6: [0, 9],
+  7: [8, 9],
+  8: [0, 2],
+  9: [1, 5],
+}
+
 function normalizeDigits(value, width, label) {
   const text = String(value ?? '').trim().padStart(width, '0')
   if (!new RegExp(`^\\d{${width}}$`).test(text)) {
@@ -82,21 +95,78 @@ export function rankFlowDigits(pointDraws) {
 }
 
 function pushUnique(target, value) {
-  if (value === undefined || value === null || target.includes(value)) return
+  if (value === undefined || value === null || target.includes(value)) return false
   target.push(value)
+  return true
+}
+
+export function findNaturalFlowReplacement(seed, usedDigits) {
+  const used = usedDigits instanceof Set ? usedDigits : new Set(usedDigits || [])
+  const queue = [...(NATURAL_FLOW[seed] || [])]
+  const visited = new Set([seed])
+
+  while (queue.length) {
+    const digit = queue.shift()
+    if (!used.has(digit)) return digit
+    if (visited.has(digit)) continue
+
+    visited.add(digit)
+    ;(NATURAL_FLOW[digit] || []).forEach((next) => {
+      if (!visited.has(next)) queue.push(next)
+    })
+  }
+
+  for (let digit = 0; digit <= 9; digit += 1) {
+    if (!used.has(digit)) return digit
+  }
+
+  return null
 }
 
 export function buildFlowWin6(ranking, pointDraws) {
   const win6 = []
+  const used = new Set()
+
+  // เรียงเลขหลักจากคะแนน FLOW ก่อน โดยให้รูด 2 ตัวอยู่ด้านหน้าเสมอ
   ranking.forEach((item) => {
-    if (win6.length < 6) pushUnique(win6, item.digit)
+    if (win6.length >= 6) return
+    if (pushUnique(win6, item.digit)) used.add(item.digit)
   })
 
-  // ถ้าแต้มดิบซ้ำจนไม่ครบ 6 ให้เติมจาก (แต้มบน + แต้มล่าง) MOD10
-  // โดยให้งวดล่าสุดมีสิทธิ์ก่อน ตามกติกาที่ตกลงกัน
-  ;[...pointDraws].reverse().forEach((draw) => {
-    if (win6.length < 6) pushUnique(win6, draw.crossPoint)
+  // ถ้าแต้ม 6 ช่องมีเลขซ้ำ ให้แทนช่องซ้ำนั้นด้วย "เลขไหลธรรมชาติ"
+  // ไล่จากคู่ไหลชั้นแรกก่อน แล้วค่อยไหลต่อเป็นชั้นถัดไปจนเจอเลขที่ยังไม่อยู่ใน WIN6
+  ranking.forEach((item) => {
+    const duplicateCount = Math.max(0, (item.count || 1) - 1)
+    for (let index = 0; index < duplicateCount && win6.length < 6; index += 1) {
+      const replacement = findNaturalFlowReplacement(item.digit, used)
+      if (replacement !== null && pushUnique(win6, replacement)) used.add(replacement)
+    }
   })
+
+  // ถ้ายังไม่ครบ 6 ให้ใช้แต้มชนบน+ล่างของงวดล่าสุดก่อน
+  // หากแต้มชนซ้ำ ก็ใช้เลขไหลธรรมชาติของแต้มชนนั้นแทนทันที
+  ;[...pointDraws].reverse().forEach((draw) => {
+    if (win6.length >= 6) return
+
+    if (pushUnique(win6, draw.crossPoint)) {
+      used.add(draw.crossPoint)
+      return
+    }
+
+    const replacement = findNaturalFlowReplacement(draw.crossPoint, used)
+    if (replacement !== null && pushUnique(win6, replacement)) used.add(replacement)
+  })
+
+  // Safety fill: WIN6 ต้องมี 6 ตัวไม่ซ้ำกันเสมอ
+  // ใช้เลขไหลธรรมชาติจากลำดับแรงก่อน จนครบ 6 ตัว
+  let safetyIndex = 0
+  while (win6.length < 6 && safetyIndex < 20) {
+    const seed = win6[safetyIndex % Math.max(1, win6.length)] ?? ranking[0]?.digit ?? 0
+    const replacement = findNaturalFlowReplacement(seed, used)
+    if (replacement === null) break
+    if (pushUnique(win6, replacement)) used.add(replacement)
+    safetyIndex += 1
+  }
 
   return win6.slice(0, 6)
 }
@@ -151,7 +221,7 @@ export function analyzeFlowCore(history) {
   const { pin3, pin3Extra } = buildFlowPin3(rud, win6)
 
   return {
-    engine: 'FLOW CORE — 3 Draw Point Flow',
+    engine: 'FLOW CORE — 3 Draw Point Flow + Natural Flow Fill',
     source: draws[draws.length - 1],
     draws,
     pointSequence: draws.flatMap((draw) => [draw.topPoint, draw.bottomPoint]),
