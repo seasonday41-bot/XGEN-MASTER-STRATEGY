@@ -19,7 +19,7 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   },
 })
 
-const FG_HISTORY_LIMIT = 100
+const FG_HISTORY_LIMIT = 30
 const dataHealthCache = new Map()
 const healthKey = (marketKey, limit) => `${marketKey}:${limit}`
 
