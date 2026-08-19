@@ -76,8 +76,14 @@ describe('FG HISTORY CORE', () => {
       top3: '574',
       bottom2: '25',
       history: [
-        { draw_date: '2026-08-07', top3: '552', bottom2: '49' },
+        { draw_date: '2026-08-07', top3: '717', bottom2: '11' },
       ],
     })).toThrow('ยังสร้าง WIN6 ไม่ได้')
+  })
+
+  it('โหมด legacy มีไว้เฉพาะ caller เก่าที่ไม่ส่ง history', () => {
+    const result = analyzePercentCore({ top3: '118', bottom2: '01' })
+    expect(result.engine).toContain('LEGACY PERCENT COMPATIBILITY')
+    expect(result.win6).toEqual([0, 3, 4, 6, 2, 8])
   })
 })
