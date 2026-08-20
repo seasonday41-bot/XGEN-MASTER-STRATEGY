@@ -569,8 +569,30 @@ button:focus-visible, input:focus-visible, summary:focus-visible {
 .win-digit.ruby { background: radial-gradient(circle at 35% 27%, #ed4c45, #a51419 62%, #690b10 100%); }
 .win-digit.axis { box-shadow: inset 0 3px 7px rgba(255,255,255,.28), inset 0 -5px 8px rgba(0,28,22,.28), 0 7px 11px rgba(42,52,29,.23), 0 0 0 3px #fff0a7, 0 0 15px rgba(229, 181, 55, .40); }
 .win-digit b { color: #fff3bd; font-family: Georgia, serif; font-size: clamp(23px, 5vw, 38px); text-shadow: 0 2px rgba(0,0,0,.45); }
-.reserve-line { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 15px 0 8px; color: #544634; font-size: 13px; font-weight: 800; }
-.reserve-line b { width: 42px; height: 42px; display: grid; place-items: center; border: 2px solid #c28d21; border-radius: 50%; color: #5e4109; background: radial-gradient(circle at 35% 25%, #fff7c8, #e0ad43 72%); font-family: Georgia, serif; font-size: 25px; box-shadow: 0 4px 8px rgba(78,57,20,.17); }
+.win-parenthesized {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 46px;
+  margin-top: 2px;
+  color: #8a651c;
+  font-family: Georgia, serif;
+}
+.win-parenthesized i { font-size: 25px; font-style: normal; font-weight: 800; }
+.win-parenthesized b {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 2px solid #c28d21;
+  border-radius: 50%;
+  color: #5e4109;
+  background: radial-gradient(circle at 35% 25%, #fff7c8, #e0ad43 72%);
+  box-shadow: 0 4px 8px rgba(78,57,20,.17), 0 0 0 2px rgba(255,247,199,.75);
+  font-size: 25px;
+}
 .drill-stack { min-width: 0; display: grid; grid-template-rows: 1fr 1fr; gap: 13px; }
 .emerald-card {
   position: relative;
@@ -824,8 +846,9 @@ button:focus-visible, input:focus-visible, summary:focus-visible {
   .output-grid { grid-template-columns: .92fr 1.08fr; }
   .win-card { min-height: 267px; padding-top: 48px; }
   .mini-banner { min-width: 139px; font-size: 14px; }
-  .reserve-line { gap: 6px; font-size: 10px; }
-  .reserve-line b { width: 36px; height: 36px; font-size: 21px; }
+  .win-parenthesized { min-height: 40px; gap: 4px; }
+  .win-parenthesized i { font-size: 21px; }
+  .win-parenthesized b { width: 36px; height: 36px; font-size: 21px; }
   .drill-card { min-height: 124px; padding-inline: 8px; }
   .drill-card h2 { gap: 5px; font-size: 12px; }
   .pick-row { gap: 3px; }

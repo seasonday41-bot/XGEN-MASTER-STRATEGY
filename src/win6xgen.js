@@ -1,6 +1,6 @@
 export const HISTORY_LIMIT = 30
-export const GH_SEARCH_WINDOW = 5
-export const EXTENDED_SEARCH_WINDOWS = [5, 6, 7, 8]
+export const INITIAL_SEARCH_WINDOW = 5
+export const MAX_SEARCH_WINDOW = 8
 export const MAX_WIN_DIGITS = 7
 
 export class Win6XgenError extends Error {
@@ -12,31 +12,39 @@ export class Win6XgenError extends Error {
   }
 }
 
-const PIN2_TEMPLATES = [
-  [0, 1],
-  [0, 2],
-  [0, 3],
-  [1, 4],
-  [1, 5],
-]
+const PIN2_TEMPLATES = {
+  6: [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [1, 4],
+    [1, 5],
+  ],
+  7: [
+    [0, 1],
+    [0, 2],
+    [0, 3],
+    [1, 4],
+    [5, 6],
+  ],
+}
 
-const PIN3_TEMPLATES = [
-  [0, 1, 2],
-  [0, 3, 4],
-  [1, 3, 5],
-  [0, 2, 5],
-  [1, 2, 4],
-]
-
-const PIN2_RESERVE_TEMPLATES = [
-  [0, 6],
-  [1, 6],
-]
-
-const PIN3_RESERVE_TEMPLATES = [
-  [0, 1, 6],
-  [0, 3, 6],
-]
+const PIN3_TEMPLATES = {
+  6: [
+    [0, 1, 2],
+    [0, 3, 4],
+    [1, 3, 5],
+    [0, 2, 5],
+    [1, 2, 4],
+  ],
+  7: [
+    [0, 1, 2],
+    [0, 3, 4],
+    [1, 3, 5],
+    [0, 2, 5],
+    [0, 1, 6],
+  ],
+}
 
 export function mod10(value) {
   return ((Number(value) % 10) + 10) % 10
@@ -98,12 +106,14 @@ export function calculateFGH(top3, bottom2) {
 function rowContainsTargets(row, targets) {
   const counts = new Map()
   resultDigits(row).forEach((digit) => counts.set(digit, (counts.get(digit) || 0) + 1))
+
   const needed = new Map()
   targets.forEach((digit) => needed.set(digit, (needed.get(digit) || 0) + 1))
+
   return [...needed.entries()].every(([digit, count]) => (counts.get(digit) || 0) >= count)
 }
 
-function findFirstMatch(rows, targets, window) {
+function firstMatchInWindow(rows, targets, window) {
   const rowIndex = rows
     .slice(0, window)
     .findIndex((row) => rowContainsTargets(row, targets))
@@ -112,179 +122,108 @@ function findFirstMatch(rows, targets, window) {
   return { row: rows[rowIndex], rowIndex }
 }
 
-export function searchCandidateSources(history, f, g, h, pairWindow = GH_SEARCH_WINDOW) {
+export function searchCandidateSources(history, f, g, h) {
   const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
   if (!rows.length) throw new Error('WIN6XGEN ต้องมีข้อมูลย้อนหลัง')
 
-  if (h === undefined) {
-    h = g
-    g = f
-    f = null
-  }
-
   const strategies = [
-    { mode: 'G+H', kind: 'G+H', targets: [g, h] },
-    ...(Number.isInteger(f) ? [{ mode: 'F+G', kind: 'F+G', targets: [f, g] }] : []),
-    { mode: 'H', kind: 'H', targets: [h] },
-    { mode: 'G', kind: 'G', targets: [g] },
-    ...(Number.isInteger(f) ? [{ mode: 'F', kind: 'F', targets: [f] }] : []),
+    { mode: 'G+H', targets: [g, h] },
+    { mode: 'F+G', targets: [f, g] },
+    { mode: 'H', targets: [h] },
+    { mode: 'G', targets: [g] },
+    { mode: 'F', targets: [f] },
   ]
 
-  const windows = uniqueFirst([pairWindow, 6, 7, 8]).filter((window) => window >= pairWindow && window <= 8)
-
-  for (const window of windows) {
+  for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
     for (const strategy of strategies) {
-      const match = findFirstMatch(rows, strategy.targets, window)
+      const match = firstMatchInWindow(rows, strategy.targets, window)
       if (!match) continue
 
       return {
         mode: strategy.mode,
-        pairWindow,
+        target: strategy.targets,
         searchWindowUsed: window,
-        matches: [{
-          kind: strategy.kind,
-          target: strategy.targets,
-          row: match.row,
-          rowIndex: match.rowIndex,
-        }],
-      }
-    }
-  }
-
-  throw new Error(
-    Number.isInteger(f)
-      ? `ไม่พบ G+H, F+G, H=${h}, G=${g} หรือ F=${f} ภายใน 8 งวดย้อนหลัง`
-      : `ไม่พบ G+H, H=${h} หรือ G=${g} ภายใน 8 งวดย้อนหลัง`,
-  )
-}
-
-export function buildCandidatePool(fgh, sourceSearch) {
-  return uniqueFirst([
-    fgh.f,
-    fgh.g,
-    fgh.h,
-    ...sourceSearch.matches.flatMap((match) => resultDigits(match.row)),
-  ]).slice(0, MAX_WIN_DIGITS)
-}
-
-export function partitionWin6(values) {
-  if (!Array.isArray(values) || values.length !== 6 || uniqueFirst(values).length !== 6) return null
-  return { type: 'NONE', groups: [] }
-}
-
-export function findFirstValidWin6(candidatePool, requiredDigits = []) {
-  const pool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
-  const required = uniqueFirst(requiredDigits)
-  if (pool.length < 6) return null
-
-  const merged = required.every((digit) => pool.includes(digit))
-    ? pool
-    : uniqueFirst([...required, ...pool]).slice(0, MAX_WIN_DIGITS)
-
-  if (merged.length < 6) return null
-  return { values: merged.slice(0, 6), type: 'NONE', groups: [] }
-}
-
-export function findHistoryZeroPairs() {
-  return []
-}
-
-export function selectWin6(candidatePool, history, requiredDigits = []) {
-  const cappedPool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
-  const selected = findFirstValidWin6(cappedPool, requiredDigits)
-  if (!selected) {
-    throw new Win6XgenError(
-      'INSUFFICIENT_WIN6_DIGITS',
-      'เลขไม่ครบ 6 ตัวสำหรับ WIN6',
-      { candidatePool: cappedPool, requiredDigits: uniqueFirst(requiredDigits) },
-    )
-  }
-
-  return {
-    ...selected,
-    candidatePool: cappedPool,
-    fillPair: null,
-    selectionMode: 'HISTORY_FIRST_UNIQUE',
-  }
-}
-
-export function searchWin6ByF(candidatePool) {
-  const cappedPool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
-  const selected = findFirstValidWin6(cappedPool)
-  return {
-    selected,
-    candidatePool: cappedPool,
-    match: null,
-    attempts: [],
-  }
-}
-
-function collectWin6FromSource(history, fgh, sourceSearch) {
-  const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
-  const startIndex = sourceSearch.matches[0]?.rowIndex ?? 0
-  const base = uniqueFirst([fgh.f, fgh.g, fgh.h])
-  let candidatePool = [...base]
-  let rowsUsed = 0
-
-  const availableFromSource = rows.slice(startIndex)
-  const limits = [5, 6, 7, 8]
-
-  for (const limit of limits) {
-    const capped = availableFromSource.slice(0, limit)
-    candidatePool = uniqueFirst([
-      ...base,
-      ...capped.flatMap((row) => resultDigits(row)),
-    ]).slice(0, MAX_WIN_DIGITS)
-    rowsUsed = capped.length
-
-    if (candidatePool.length >= 6) {
-      return {
-        candidatePool,
-        rowsUsed,
-        collectionWindowUsed: limit,
-        sourceStartIndex: startIndex,
+        match,
       }
     }
   }
 
   throw new Win6XgenError(
-    'INSUFFICIENT_WIN6_DIGITS',
-    'ย้อนจากงวดที่พบถึง 8 งวดแล้วยังมีเลขไม่ครบ 6 ตัว',
+    'SOURCE_NOT_FOUND',
+    `ไม่พบ G+H, F+G, H=${h}, G=${g} หรือ F=${f} ภายใน 8 งวดย้อนหลัง`,
+    { f, g, h, historyChecked: Math.min(rows.length, MAX_SEARCH_WINDOW) },
+  )
+}
+
+export function collectWinDigits(history, fgh, sourceSearch) {
+  const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
+  const sourceStartIndex = sourceSearch?.match?.rowIndex
+
+  if (!Number.isInteger(sourceStartIndex) || sourceStartIndex < 0 || sourceStartIndex >= rows.length) {
+    throw new Win6XgenError('INVALID_SOURCE', 'ไม่พบตำแหน่งงวดเริ่มต้นสำหรับจัด WIN6')
+  }
+
+  const baseDigits = uniqueFirst([fgh.f, fgh.g, fgh.h])
+  const rowsFromSource = rows.slice(sourceStartIndex)
+
+  for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
+    const rowsUsed = rowsFromSource.slice(0, window)
+    const candidatePool = uniqueFirst([
+      ...baseDigits,
+      ...rowsUsed.flatMap(resultDigits),
+    ]).slice(0, MAX_WIN_DIGITS)
+
+    if (candidatePool.length >= 6) {
+      return {
+        baseDigits,
+        candidatePool,
+        collectionWindowUsed: window,
+        collectionRowsUsed: rowsUsed.length,
+        sourceStartIndex,
+      }
+    }
+  }
+
+  throw new Win6XgenError(
+    'INSUFFICIENT_WIN_DIGITS',
+    'ไล่ย้อนหลังจากงวดที่พบถึงงวดที่ 8 แล้วยังมีเลขไม่ครบ 6 ตัว',
     {
-      sourceStartIndex: startIndex,
-      candidatePool,
-      rowsAvailable: availableFromSource.length,
+      baseDigits,
+      candidatePool: uniqueFirst([
+        ...baseDigits,
+        ...rowsFromSource.slice(0, MAX_SEARCH_WINDOW).flatMap(resultDigits),
+      ]).slice(0, MAX_WIN_DIGITS),
+      sourceStartIndex,
+      collectionRowsAvailable: Math.min(rowsFromSource.length, MAX_SEARCH_WINDOW),
     },
   )
 }
 
-export function buildPin2(winDigits) {
-  if (!Array.isArray(winDigits) || winDigits.length < 6) return []
-  const capped = uniqueFirst(winDigits).slice(0, MAX_WIN_DIGITS)
-  const templates = capped.length === 7
-    ? [...PIN2_TEMPLATES, ...PIN2_RESERVE_TEMPLATES]
-    : PIN2_TEMPLATES
+function normalizeWinDigits(values) {
+  return uniqueFirst(Array.isArray(values) ? values : []).slice(0, MAX_WIN_DIGITS)
+}
 
-  return templates.map((positions) => ({
-    pair: positions.map((position) => capped[position]).join(''),
+export function buildPin2(winDigits) {
+  const digits = normalizeWinDigits(winDigits)
+  if (digits.length < 6) return []
+
+  return PIN2_TEMPLATES[digits.length].map((positions) => ({
+    pair: positions.map((position) => digits[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
-    usesReserve: positions.includes(6),
+    usesParenthesizedDigit: positions.includes(6),
   }))
 }
 
 export function buildPin3(winDigits) {
-  if (!Array.isArray(winDigits) || winDigits.length < 6) return []
-  const capped = uniqueFirst(winDigits).slice(0, MAX_WIN_DIGITS)
-  const templates = capped.length === 7
-    ? [...PIN3_TEMPLATES, ...PIN3_RESERVE_TEMPLATES]
-    : PIN3_TEMPLATES
+  const digits = normalizeWinDigits(winDigits)
+  if (digits.length < 6) return []
 
-  return templates.map((positions) => ({
-    triple: positions.map((position) => capped[position]).join(''),
+  return PIN3_TEMPLATES[digits.length].map((positions) => ({
+    triple: positions.map((position) => digits[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
-    usesReserve: positions.includes(6),
+    usesParenthesizedDigit: positions.includes(6),
   }))
 }
 
@@ -301,33 +240,29 @@ export function analyzeWin6Xgen(input) {
 
   const fgh = calculateFGH(source.top3, source.bottom2)
   const sourceSearch = searchCandidateSources(history, fgh.f, fgh.g, fgh.h)
-  const collected = collectWin6FromSource(history, fgh, sourceSearch)
-  const selected = selectWin6(collected.candidatePool, history, [fgh.f, fgh.g])
-  const reserve = selected.candidatePool.length === 7 ? selected.candidatePool[6] : null
-  const pinDigits = reserve === null ? selected.values : [...selected.values, reserve]
+  const collected = collectWinDigits(history, fgh, sourceSearch)
+  const winDigits = collected.candidatePool
+  const win6 = winDigits.slice(0, 6)
+  const reserve = winDigits.length === MAX_WIN_DIGITS ? winDigits[6] : null
 
   return {
     engine: 'WIN6XGEN',
-    version: '3.1.0',
+    version: '3.1.1',
     source,
     history,
     historyUsed: Math.min(history.length + 1, HISTORY_LIMIT),
     ...fgh,
     sourceSearch,
-    initialCandidatePool: buildCandidatePool(fgh, sourceSearch),
-    candidatePool: selected.candidatePool,
-    selectionMode: selected.selectionMode,
+    selectionMode: 'HISTORY_FIRST_UNIQUE',
+    baseDigits: collected.baseDigits,
+    candidatePool: winDigits,
     collectionWindowUsed: collected.collectionWindowUsed,
-    collectionRowsUsed: collected.rowsUsed,
+    collectionRowsUsed: collected.collectionRowsUsed,
     sourceStartIndex: collected.sourceStartIndex,
-    fillPair: null,
-    fSearch: null,
-    win6: selected.values,
-    partitionType: 'NONE',
-    mod10Groups: [],
+    win6,
     reserve,
-    pinDigits,
-    pin2: buildPin2(pinDigits),
-    pin3: buildPin3(pinDigits),
+    pinDigits: winDigits,
+    pin2: buildPin2(winDigits),
+    pin3: buildPin3(winDigits),
   }
 }
