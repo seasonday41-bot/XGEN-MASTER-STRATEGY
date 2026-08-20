@@ -24,10 +24,40 @@ describe('WIN6XGEN copy', () => {
     expect(text).toContain('240-56')
     expect(text).toContain('⚡ รูด 4 • 1')
     expect(text).toContain('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8')
+    expect(text).toContain('🧬 ปกติ')
+    expect(text).toContain('👥 พี่น้อง 56')
     expect(text).toContain('🎯 เจาะ 2')
     expect(text).toContain('🎯 เจาะ 3')
-    expect(text).toContain('🧬 SyntraX')
+    expect(text).not.toContain('SyntraX')
     expect(text).not.toContain('Candidate Pool')
+  })
+
+  it('จัด Copy แบบลูกค้าพร้อมเลขเบิ้ลและคู่พี่น้องของโครงสร้าง AAB', () => {
+    const result = {
+      marketName: 'ฮานอยพิเศษ',
+      source: { top3: '663', bottom2: '13' },
+      rud: [9, 4],
+      win6: [9, 4, 3, 7, 5, 2],
+      reserve: 0,
+      pin2: ['94', '93', '97', '45', '42'].map((pair) => ({ pair })),
+      pin3: ['943', '975', '472', '932', '435'].map((triple) => ({ triple })),
+      pattern: analyzeSyntraXPattern({ top3: '663', bottom2: '13' }, [], [9, 4]),
+    }
+
+    expect(formatCopyText(result)).toBe([
+      '🍀 WIN6XGEN | ฮานอยพิเศษ',
+      '663-13',
+      '',
+      '⚡ รูด 9 • 4',
+      '✨ WIN6 9 • 4 • 3 • 7 • 5 • 2 (0)',
+      '',
+      '🧬 เบิ้ลหน้า AAB',
+      '🎲 เบิ้ล 66',
+      '👥 พี่น้อง 69 • 34',
+      '',
+      '🎯 เจาะ 2 94 • 93 • 97 • 45 • 42',
+      '🎯 เจาะ 3 943 • 975 • 472 • 932 • 435',
+    ].join('\n'))
   })
 
   it('คัดลอกแยกแต่ละส่วนได้', () => {
