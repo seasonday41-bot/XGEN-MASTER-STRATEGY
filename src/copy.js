@@ -1,28 +1,36 @@
-function joinOrNone(values, noneText = 'ไม่มี') {
-  return values?.length ? values.join(' • ') : noneText
+function spaced(values, empty = '—') {
+  return values?.length ? values.join(' • ') : empty
+}
+
+function patternText(pattern) {
+  const current = pattern?.current
+  if (!current) return 'ปกติ'
+  const parts = [current.top.label]
+  if (current.bottomDouble) parts.push(`ล่างเบิ้ล ${current.bottomDoublePair}`)
+  if (current.siblings.length) parts.push(`พี่น้อง ${current.siblings.map((item) => item.pair).join(' • ')}`)
+  return parts.join(' • ')
 }
 
 export function formatCopyText(result) {
-  const coreSet = result.coreSet || result.win6 || []
-  const firstMatch = result.firstMatch
-    ? `${result.firstMatch.top3}-${result.firstMatch.bottom2}`
-    : '—'
-
   return [
-    `🏷️ ตลาด ${result.marketName}`,
-    `📊 ผลล่าสุด ${result.source.top3}-${result.source.bottom2}`,
-    `⚡ FG ${joinOrNone(result.fg || [], '—')}${result.isTriple ? ' • กฎตอง' : ''}`,
-    `🌑 เงา FG ${joinOrNone(result.shadow || [], '—')}`,
-    `🔎 คู่ค้น ${joinOrNone(result.searchPairs || [], '—')}`,
-    `📚 ชุดแรก ${firstMatch} • เจอคู่ ${joinOrNone(result.matchedPairs || [], '—')}`,
-    `✨ ชุดหลัก ${joinOrNone(coreSet, '—')}`,
+    `🍀 WIN6XGEN | ${result.marketName}`,
+    `${result.source.top3}-${result.source.bottom2}`,
     '',
-    `🎯 เจาะ 2 = ${(result.pin2 || []).map((item) => item.pair).join(' • ')}`,
-    `🎯 เจาะ 3 = ${(result.pin3 || []).map((item) => item.triple).join(' • ')}`,
-    `⭐ เจาะ 3 เสริม ${(result.pin3Extra || []).map((item) => item.triple).join(' • ')}`,
+    `⚡ รูด ${spaced(result.rud)}`,
+    `✨ WIN6 ${spaced(result.win6)}`,
+    `🎯 เจาะ 2 ${spaced(result.pin2.map((item) => item.pair))}`,
+    `🎯 เจาะ 3 ${spaced(result.pin3.map((item) => item.triple))}`,
     '',
-    `🔄 เบิ้ล ${joinOrNone(result.patterns?.doubles || [])}`,
-    `👑 ตอง ${joinOrNone(result.patterns?.triples || [])}`,
-    `👯 พี่น้อง ${joinOrNone(result.patterns?.siblings || [])}`,
+    `🧬 SyntraX ${patternText(result.pattern)}`,
   ].join('\n')
+}
+
+export function formatCopySection(result, section) {
+  const sections = {
+    rud: `⚡ รูด ${spaced(result.rud)}`,
+    win6: `✨ WIN6 ${spaced(result.win6)}`,
+    pin2: `🎯 เจาะ 2 ${spaced(result.pin2.map((item) => item.pair))}`,
+    pin3: `🎯 เจาะ 3 ${spaced(result.pin3.map((item) => item.triple))}`,
+  }
+  return sections[section] || formatCopyText(result)
 }
