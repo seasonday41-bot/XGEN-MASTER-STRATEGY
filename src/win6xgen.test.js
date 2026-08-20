@@ -9,6 +9,7 @@ import {
   findHistoryZeroPairs,
   partitionWin6,
   searchCandidateSources,
+  searchWin6ByF,
   selectWin6,
 } from './win6xgen.js'
 
@@ -96,6 +97,86 @@ describe('WIN6XGEN CORE', () => {
       [{ top3: '688', bottom2: '79' }],
       [0, 1],
     )).toThrow('ไม่มี WIN6 ที่ผ่าน MOD10 ตามวิธีที่บันทึกไว้')
+  })
+
+  it('เมื่อขั้นเดิมไม่สำเร็จ ใช้ F ค้นย้อนหลังจนเจองวดแรกที่จัด WIN6 ได้', () => {
+    const result = analyzeWin6Xgen({
+      draw_date: '2026-08-19',
+      top3: '736',
+      bottom2: '49',
+      history: [
+        { draw_date: '2026-08-18', top3: '943', bottom2: '22' },
+        { draw_date: '2026-08-17', top3: '994', bottom2: '80' },
+        { draw_date: '2026-08-16', top3: '782', bottom2: '49' },
+        { draw_date: '2026-08-15', top3: '072', bottom2: '65' },
+        { draw_date: '2026-08-14', top3: '579', bottom2: '85' },
+        { draw_date: '2026-08-13', top3: '192', bottom2: '71' },
+        { draw_date: '2026-08-12', top3: '765', bottom2: '24' },
+        { draw_date: '2026-08-10', top3: '371', bottom2: '24' },
+      ],
+    })
+
+    expect(result.selectionMode).toBe('F_HISTORY_SEARCH')
+    expect(result.win6).toEqual([9, 3, 2, 4, 5, 7])
+    expect(result.mod10Groups).toEqual([[9, 4, 7], [3, 2, 5]])
+    expect(result.reserve).toBe(8)
+    expect(result.fSearch.match).toMatchObject({
+      rowIndex: 4,
+      row: { top3: '579', bottom2: '85' },
+    })
+    expect(result.fSearch.attempts).toHaveLength(3)
+  })
+
+  it('ค้น F โดยข้ามงวดที่ขั้น G+H ใช้ไปแล้ว', () => {
+    const result = searchWin6ByF(
+      [9, 3, 2, 4],
+      [
+        { top3: '943', bottom2: '22' },
+        { top3: '994', bottom2: '80' },
+        { top3: '579', bottom2: '85' },
+      ],
+      9,
+      [9, 3],
+      [0],
+    )
+
+    expect(result.match.rowIndex).toBe(2)
+    expect(result.selected.values).toEqual([9, 3, 2, 4, 5, 7])
+  })
+
+  it('ส่งหลักฐานเมื่อคู่เติมทุกคู่ชน Pool และค้น F แล้วยังไม่สำเร็จ', () => {
+    let captured
+
+    try {
+      analyzeWin6Xgen({
+        draw_date: '2026-08-19',
+        top3: '736',
+        bottom2: '49',
+        history: [
+          { draw_date: '2026-08-18', top3: '943', bottom2: '22' },
+          { draw_date: '2026-08-16', top3: '782', bottom2: '49' },
+          { draw_date: '2026-08-13', top3: '192', bottom2: '71' },
+          { draw_date: '2026-08-12', top3: '765', bottom2: '24' },
+          { draw_date: '2026-08-10', top3: '371', bottom2: '24' },
+        ],
+      })
+    } catch (error) {
+      captured = error
+    }
+
+    expect(captured?.code).toBe('NO_DISJOINT_MOD10_PAIR')
+    expect(captured?.details.initialCandidatePool).toEqual([9, 3, 2, 4])
+    expect(captured?.details.fgh).toMatchObject({ f: 9, g: 3, h: 2 })
+    expect(captured?.details.fSearch.attempts).toHaveLength(2)
+    expect(captured?.details.zeroPairs.map((item) => ({
+      pair: item.pair,
+      blockedBy: item.blockedBy,
+    }))).toEqual([
+      { pair: '82', blockedBy: [2] },
+      { pair: '19', blockedBy: [9] },
+      { pair: '64', blockedBy: [4] },
+      { pair: '37', blockedBy: [3] },
+    ])
   })
 
   it('สร้าง WIN6XGEN ครบจากตัวอย่างสองชุดสามตัว', () => {
