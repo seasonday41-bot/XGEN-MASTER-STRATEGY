@@ -1,5 +1,7 @@
 export const HISTORY_LIMIT = 30
 export const GH_SEARCH_WINDOW = 5
+export const EXTENDED_SEARCH_WINDOWS = [5, 6, 7, 8]
+export const MAX_WIN_DIGITS = 7
 
 export class Win6XgenError extends Error {
   constructor(code, message, details = {}) {
@@ -24,6 +26,16 @@ const PIN3_TEMPLATES = [
   [1, 3, 5],
   [0, 2, 5],
   [1, 2, 4],
+]
+
+const PIN2_RESERVE_TEMPLATES = [
+  [0, 6],
+  [1, 6],
+]
+
+const PIN3_RESERVE_TEMPLATES = [
+  [0, 1, 6],
+  [0, 3, 6],
 ]
 
 export function mod10(value) {
@@ -91,67 +103,58 @@ function rowContainsTargets(row, targets) {
   return [...needed.entries()].every(([digit, count]) => (counts.get(digit) || 0) >= count)
 }
 
-function firstTargetMatch(rows, target) {
-  const rowIndex = rows.findIndex((row) => rowContainsTargets(row, [target]))
+function findFirstMatch(rows, targets, window) {
+  const rowIndex = rows
+    .slice(0, window)
+    .findIndex((row) => rowContainsTargets(row, targets))
+
   if (rowIndex < 0) return null
-  return { kind: String(target), target: [target], row: rows[rowIndex], rowIndex }
+  return { row: rows[rowIndex], rowIndex }
 }
 
 export function searchCandidateSources(history, f, g, h, pairWindow = GH_SEARCH_WINDOW) {
   const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
   if (!rows.length) throw new Error('WIN6XGEN ต้องมีข้อมูลย้อนหลัง')
 
-  // Backward compatibility for older direct calls: (history, g, h)
   if (h === undefined) {
     h = g
     g = f
     f = null
   }
 
-  const pairStrategies = [
+  const strategies = [
     { mode: 'G+H', kind: 'G+H', targets: [g, h] },
     ...(Number.isInteger(f) ? [{ mode: 'F+G', kind: 'F+G', targets: [f, g] }] : []),
+    { mode: 'H', kind: 'H', targets: [h] },
+    { mode: 'G', kind: 'G', targets: [g] },
+    ...(Number.isInteger(f) ? [{ mode: 'F', kind: 'F', targets: [f] }] : []),
   ]
 
-  for (const strategy of pairStrategies) {
-    const rowIndex = rows
-      .slice(0, pairWindow)
-      .findIndex((row) => rowContainsTargets(row, strategy.targets))
+  const windows = uniqueFirst([pairWindow, 6, 7, 8]).filter((window) => window >= pairWindow && window <= 8)
 
-    if (rowIndex >= 0) {
+  for (const window of windows) {
+    for (const strategy of strategies) {
+      const match = findFirstMatch(rows, strategy.targets, window)
+      if (!match) continue
+
       return {
         mode: strategy.mode,
         pairWindow,
+        searchWindowUsed: window,
         matches: [{
           kind: strategy.kind,
           target: strategy.targets,
-          row: rows[rowIndex],
-          rowIndex,
+          row: match.row,
+          rowIndex: match.rowIndex,
         }],
       }
     }
   }
 
-  const singleStrategies = [
-    { mode: 'H', kind: 'H', target: h },
-    { mode: 'G', kind: 'G', target: g },
-    ...(Number.isInteger(f) ? [{ mode: 'F', kind: 'F', target: f }] : []),
-  ]
-
-  for (const strategy of singleStrategies) {
-    const match = firstTargetMatch(rows, strategy.target)
-    if (!match) continue
-    return {
-      mode: strategy.mode,
-      pairWindow,
-      matches: [{ ...match, kind: strategy.kind }],
-    }
-  }
-
   throw new Error(
     Number.isInteger(f)
-      ? `ไม่พบ G+H, F+G, H=${h}, G=${g} หรือ F=${f} ในข้อมูลย้อนหลัง`
-      : `ไม่พบ G+H, H=${h} หรือ G=${g} ในข้อมูลย้อนหลัง`,
+      ? `ไม่พบ G+H, F+G, H=${h}, G=${g} หรือ F=${f} ภายใน 8 งวดย้อนหลัง`
+      : `ไม่พบ G+H, H=${h} หรือ G=${g} ภายใน 8 งวดย้อนหลัง`,
   )
 }
 
@@ -161,204 +164,127 @@ export function buildCandidatePool(fgh, sourceSearch) {
     fgh.g,
     fgh.h,
     ...sourceSearch.matches.flatMap((match) => resultDigits(match.row)),
-  ])
-}
-
-function combinations(values, size, start = 0, selected = [], output = []) {
-  if (selected.length === size) {
-    output.push([...selected])
-    return output
-  }
-
-  const remaining = size - selected.length
-  for (let index = start; index <= values.length - remaining; index += 1) {
-    selected.push(values[index])
-    combinations(values, size, index + 1, selected, output)
-    selected.pop()
-  }
-  return output
-}
-
-function findPairPartition(values) {
-  if (!values.length) return []
-  const [first, ...rest] = values
-
-  for (let index = 0; index < rest.length; index += 1) {
-    const second = rest[index]
-    if (mod10(first + second) !== 0) continue
-    const remaining = rest.filter((_, restIndex) => restIndex !== index)
-    const nested = findPairPartition(remaining)
-    if (nested) return [[first, second], ...nested]
-  }
-
-  return null
-}
-
-function findTriplePartition(values) {
-  const [first, ...rest] = values
-  for (let left = 0; left < rest.length - 1; left += 1) {
-    for (let right = left + 1; right < rest.length; right += 1) {
-      const group = [first, rest[left], rest[right]]
-      if (mod10(group.reduce((sum, digit) => sum + digit, 0)) !== 0) continue
-
-      const remaining = rest.filter((_, index) => index !== left && index !== right)
-      if (remaining.length === 3 && mod10(remaining.reduce((sum, digit) => sum + digit, 0)) === 0) {
-        return [group, remaining]
-      }
-    }
-  }
-  return null
+  ]).slice(0, MAX_WIN_DIGITS)
 }
 
 export function partitionWin6(values) {
   if (!Array.isArray(values) || values.length !== 6 || uniqueFirst(values).length !== 6) return null
-
-  const pairs = findPairPartition(values)
-  if (pairs?.length === 3) return { type: 'PAIR×3', groups: pairs }
-
-  const triples = findTriplePartition(values)
-  if (triples?.length === 2) return { type: 'TRIPLE×2', groups: triples }
-
-  return null
+  return { type: 'NONE', groups: [] }
 }
 
 export function findFirstValidWin6(candidatePool, requiredDigits = []) {
-  const pool = uniqueFirst(candidatePool)
+  const pool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
   const required = uniqueFirst(requiredDigits)
   if (pool.length < 6) return null
 
-  for (const values of combinations(pool, 6)) {
-    if (!required.every((digit) => values.includes(digit))) continue
-    const partition = partitionWin6(values)
-    if (partition) return { values, ...partition }
-  }
+  const merged = required.every((digit) => pool.includes(digit))
+    ? pool
+    : uniqueFirst([...required, ...pool]).slice(0, MAX_WIN_DIGITS)
 
-  return null
+  if (merged.length < 6) return null
+  return { values: merged.slice(0, 6), type: 'NONE', groups: [] }
 }
 
-export function findHistoryZeroPairs(history) {
-  const output = []
-  const seen = new Set()
-
-  ;(Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean).forEach((row, rowIndex) => {
-    const digits = resultDigits(row)
-    for (let left = 0; left < digits.length - 1; left += 1) {
-      for (let right = left + 1; right < digits.length; right += 1) {
-        const a = digits[left]
-        const b = digits[right]
-        if (a === b || mod10(a + b) !== 0) continue
-        const key = [a, b].sort((x, y) => x - y).join('')
-        if (seen.has(key)) continue
-        seen.add(key)
-        output.push({ pair: `${a}${b}`, digits: [a, b], row, rowIndex })
-      }
-    }
-  })
-
-  return output
+export function findHistoryZeroPairs() {
+  return []
 }
 
-export function selectWin6(candidatePool, history, requiredDigits) {
-  const corePool = uniqueFirst(candidatePool)
-  const direct = findFirstValidWin6(corePool, requiredDigits)
-  if (direct) {
-    return { ...direct, candidatePool: corePool, fillPair: null, selectionMode: 'CANDIDATE_POOL' }
-  }
-
-  if (corePool.length >= 6) {
-    throw new Win6XgenError(
-      'NO_VALID_WIN6',
-      'Candidate Pool ไม่มี WIN6 ที่ผ่าน MOD10 ตามวิธีที่บันทึกไว้',
-      { candidatePool: corePool, requiredDigits: uniqueFirst(requiredDigits) },
-    )
-  }
-
-  const zeroPairs = findHistoryZeroPairs(history).map((item) => ({
-    ...item,
-    blockedBy: item.digits.filter((digit) => corePool.includes(digit)),
-  }))
-  const fillPair = zeroPairs.find((item) => item.blockedBy.length === 0)
-  if (!fillPair) {
-    throw new Win6XgenError(
-      'NO_DISJOINT_MOD10_PAIR',
-      'ไม่พบคู่ MOD10 คู่แรกที่ไม่ซ้ำ Candidate Pool',
-      {
-        candidatePool: corePool,
-        requiredDigits: uniqueFirst(requiredDigits),
-        zeroPairs,
-      },
-    )
-  }
-
-  const expandedPool = uniqueFirst([...corePool, ...fillPair.digits])
-  const selected = findFirstValidWin6(expandedPool, requiredDigits)
+export function selectWin6(candidatePool, history, requiredDigits = []) {
+  const cappedPool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
+  const selected = findFirstValidWin6(cappedPool, requiredDigits)
   if (!selected) {
     throw new Win6XgenError(
-      'FIRST_PAIR_NOT_VALID',
-      'คู่ MOD10 คู่แรกยังจัด WIN6 ตามวิธีที่บันทึกไว้ไม่ได้',
-      {
-        candidatePool: expandedPool,
-        initialCandidatePool: corePool,
-        requiredDigits: uniqueFirst(requiredDigits),
-        fillPair,
-        zeroPairs,
-      },
+      'INSUFFICIENT_WIN6_DIGITS',
+      'เลขไม่ครบ 6 ตัวสำหรับ WIN6',
+      { candidatePool: cappedPool, requiredDigits: uniqueFirst(requiredDigits) },
     )
   }
 
   return {
     ...selected,
-    candidatePool: expandedPool,
-    fillPair,
-    selectionMode: 'FIRST_HISTORY_MOD10_PAIR',
+    candidatePool: cappedPool,
+    fillPair: null,
+    selectionMode: 'HISTORY_FIRST_UNIQUE',
   }
 }
 
-export function searchWin6ByF(candidatePool, history, f, requiredDigits, excludedRowIndexes = []) {
-  const corePool = uniqueFirst(candidatePool)
-  const excluded = new Set(excludedRowIndexes)
-  const attempts = []
+export function searchWin6ByF(candidatePool) {
+  const cappedPool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
+  const selected = findFirstValidWin6(cappedPool)
+  return {
+    selected,
+    candidatePool: cappedPool,
+    match: null,
+    attempts: [],
+  }
+}
+
+function collectWin6FromSource(history, fgh, sourceSearch) {
   const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
+  const startIndex = sourceSearch.matches[0]?.rowIndex ?? 0
+  const base = uniqueFirst([fgh.f, fgh.g, fgh.h])
+  let candidatePool = [...base]
+  let rowsUsed = 0
 
-  for (let rowIndex = 0; rowIndex < rows.length; rowIndex += 1) {
-    if (excluded.has(rowIndex)) continue
-    const row = rows[rowIndex]
-    const digits = resultDigits(row)
-    if (!digits.includes(Number(f))) continue
+  const availableFromSource = rows.slice(startIndex)
+  const limits = [5, 6, 7, 8]
 
-    const expandedPool = uniqueFirst([...corePool, ...digits])
-    const selected = findFirstValidWin6(expandedPool, requiredDigits)
-    const attempt = { row, rowIndex, candidatePool: expandedPool, valid: Boolean(selected) }
-    attempts.push(attempt)
+  for (const limit of limits) {
+    const capped = availableFromSource.slice(0, limit)
+    candidatePool = uniqueFirst([
+      ...base,
+      ...capped.flatMap((row) => resultDigits(row)),
+    ]).slice(0, MAX_WIN_DIGITS)
+    rowsUsed = capped.length
 
-    if (selected) {
+    if (candidatePool.length >= 6) {
       return {
-        selected,
-        candidatePool: expandedPool,
-        match: attempt,
-        attempts,
+        candidatePool,
+        rowsUsed,
+        collectionWindowUsed: limit,
+        sourceStartIndex: startIndex,
       }
     }
   }
 
-  return { selected: null, candidatePool: corePool, match: null, attempts }
+  throw new Win6XgenError(
+    'INSUFFICIENT_WIN6_DIGITS',
+    'ย้อนจากงวดที่พบถึง 8 งวดแล้วยังมีเลขไม่ครบ 6 ตัว',
+    {
+      sourceStartIndex: startIndex,
+      candidatePool,
+      rowsAvailable: availableFromSource.length,
+    },
+  )
 }
 
-export function buildPin2(win6) {
-  if (!Array.isArray(win6) || win6.length !== 6) return []
-  return PIN2_TEMPLATES.map((positions) => ({
-    pair: positions.map((position) => win6[position]).join(''),
+export function buildPin2(winDigits) {
+  if (!Array.isArray(winDigits) || winDigits.length < 6) return []
+  const capped = uniqueFirst(winDigits).slice(0, MAX_WIN_DIGITS)
+  const templates = capped.length === 7
+    ? [...PIN2_TEMPLATES, ...PIN2_RESERVE_TEMPLATES]
+    : PIN2_TEMPLATES
+
+  return templates.map((positions) => ({
+    pair: positions.map((position) => capped[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
+    usesReserve: positions.includes(6),
   }))
 }
 
-export function buildPin3(win6) {
-  if (!Array.isArray(win6) || win6.length !== 6) return []
-  return PIN3_TEMPLATES.map((positions) => ({
-    triple: positions.map((position) => win6[position]).join(''),
+export function buildPin3(winDigits) {
+  if (!Array.isArray(winDigits) || winDigits.length < 6) return []
+  const capped = uniqueFirst(winDigits).slice(0, MAX_WIN_DIGITS)
+  const templates = capped.length === 7
+    ? [...PIN3_TEMPLATES, ...PIN3_RESERVE_TEMPLATES]
+    : PIN3_TEMPLATES
+
+  return templates.map((positions) => ({
+    triple: positions.map((position) => capped[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
+    usesReserve: positions.includes(6),
   }))
 }
 
@@ -375,76 +301,33 @@ export function analyzeWin6Xgen(input) {
 
   const fgh = calculateFGH(source.top3, source.bottom2)
   const sourceSearch = searchCandidateSources(history, fgh.f, fgh.g, fgh.h)
-  const initialCandidatePool = buildCandidatePool(fgh, sourceSearch)
-  let selected
-  let primaryError = null
-
-  try {
-    selected = selectWin6(initialCandidatePool, history, [fgh.f, fgh.g])
-  } catch (error) {
-    primaryError = error
-  }
-
-  if (!selected) {
-    const excludedRows = sourceSearch.matches.map((match) => match.rowIndex)
-    const fSearch = searchWin6ByF(
-      initialCandidatePool,
-      history,
-      fgh.f,
-      [fgh.f, fgh.g],
-      excludedRows,
-    )
-
-    if (fSearch.selected) {
-      selected = {
-        ...fSearch.selected,
-        candidatePool: fSearch.candidatePool,
-        fillPair: null,
-        selectionMode: 'F_HISTORY_SEARCH',
-        fSearch: {
-          match: fSearch.match,
-          attempts: fSearch.attempts,
-        },
-      }
-    } else {
-      const error = primaryError instanceof Win6XgenError
-        ? primaryError
-        : new Win6XgenError('NO_VALID_WIN6', primaryError?.message || 'ยังจัด WIN6 ไม่ได้')
-      error.details = {
-        source,
-        fgh,
-        sourceSearch,
-        initialCandidatePool,
-        historyUsed: Math.min(history.length + 1, HISTORY_LIMIT),
-        ...error.details,
-        fSearch: {
-          attempts: fSearch.attempts,
-          excludedRowIndexes: excludedRows,
-        },
-      }
-      throw error
-    }
-  }
-  const reserve = selected.candidatePool.find((digit) => !selected.values.includes(digit)) ?? null
+  const collected = collectWin6FromSource(history, fgh, sourceSearch)
+  const selected = selectWin6(collected.candidatePool, history, [fgh.f, fgh.g])
+  const reserve = selected.candidatePool.length === 7 ? selected.candidatePool[6] : null
+  const pinDigits = reserve === null ? selected.values : [...selected.values, reserve]
 
   return {
     engine: 'WIN6XGEN',
-    version: '2.1.0',
+    version: '3.1.0',
     source,
     history,
     historyUsed: Math.min(history.length + 1, HISTORY_LIMIT),
     ...fgh,
     sourceSearch,
-    initialCandidatePool,
+    initialCandidatePool: buildCandidatePool(fgh, sourceSearch),
     candidatePool: selected.candidatePool,
     selectionMode: selected.selectionMode,
-    fillPair: selected.fillPair,
-    fSearch: selected.fSearch || null,
+    collectionWindowUsed: collected.collectionWindowUsed,
+    collectionRowsUsed: collected.rowsUsed,
+    sourceStartIndex: collected.sourceStartIndex,
+    fillPair: null,
+    fSearch: null,
     win6: selected.values,
-    partitionType: selected.type,
-    mod10Groups: selected.groups,
+    partitionType: 'NONE',
+    mod10Groups: [],
     reserve,
-    pin2: buildPin2(selected.values),
-    pin3: buildPin3(selected.values),
+    pinDigits,
+    pin2: buildPin2(pinDigits),
+    pin3: buildPin3(pinDigits),
   }
 }
