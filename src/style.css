@@ -895,14 +895,34 @@ body {
 .hero-dragon {
   position: absolute;
   z-index: 2;
-  top: -66%;
-  right: -4%;
-  width: 62%;
-  height: 174%;
-  filter: saturate(.88) contrast(.86) drop-shadow(0 0 7px rgba(231, 199, 102, .18));
-  opacity: .28;
+  top: 0;
+  right: 0;
+  width: min(50%, 420px);
+  height: 120%;
+  opacity: 1;
   pointer-events: none;
-  background: url('/assets/brand/xgen-jade-dragon-v1.png') right top / contain no-repeat;
+}
+
+.hero-dragon::before,
+.hero-dragon::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: url('/assets/brand/xgen-jade-dragon-v1.png') 82% top / contain no-repeat;
+}
+
+.hero-dragon::before {
+  opacity: .28;
+  filter: saturate(.84) contrast(.90);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0 58%, rgba(0, 0, 0, .74) 76%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0 58%, rgba(0, 0, 0, .74) 76%, transparent 100%);
+}
+
+.hero-dragon::after {
+  opacity: .56;
+  filter: saturate(.96) contrast(1.14) brightness(1.02) drop-shadow(0 0 5px rgba(212, 175, 55, .20));
+  -webkit-mask-image: radial-gradient(ellipse 30% 28% at 70% 17%, #000 0 48%, rgba(0, 0, 0, .82) 66%, transparent 100%);
+  mask-image: radial-gradient(ellipse 30% 28% at 70% 17%, #000 0 48%, rgba(0, 0, 0, .82) 66%, transparent 100%);
 }
 
 .fortune-charm { opacity: .42; transform: scale(.88); }
@@ -930,7 +950,7 @@ body:not(.page-ready) .quick-controls { opacity: 0; }
 
 @keyframes dragonEntrance {
   from { opacity: 0; }
-  to { opacity: .28; }
+  to { opacity: 1; }
 }
 
 @keyframes controlsEntrance {
@@ -1227,7 +1247,13 @@ body:not(.page-ready) .quick-controls { opacity: 0; }
 
 @media (max-width: 560px) {
   .temple-hero { min-height: 226px; }
-  .hero-dragon { top: -58%; right: -8%; width: 68%; height: 164%; }
+  .hero-dragon { width: 38%; height: 132%; }
+  .hero-dragon::before,
+  .hero-dragon::after { background-position: right top; }
+  .hero-dragon::after {
+    -webkit-mask-image: radial-gradient(ellipse 46% 28% at 46% 16%, #000 0 48%, rgba(0, 0, 0, .82) 66%, transparent 100%);
+    mask-image: radial-gradient(ellipse 46% 28% at 46% 16%, #000 0 48%, rgba(0, 0, 0, .82) 66%, transparent 100%);
+  }
   .latest-palace { min-height: 218px; padding: 46px 14px 14px; }
   .rud-banner { width: min(82%, 315px); height: 72px; grid-template-rows: 20px 1fr; padding: 5px 18px 7px; }
   .rud-banner span { font-size: 11px; }
