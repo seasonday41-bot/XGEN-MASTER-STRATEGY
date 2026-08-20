@@ -1,6 +1,8 @@
 import { normalizeResult } from './win6xgen.js'
 
 export const TOP_PATTERN_PRIORITY = ['TRIPLE', 'AAB', 'ABB', 'ABA', 'NORMAL']
+export const PATTERN_TRACK_WINDOW = 5
+export const DOUBLE_SIGNAL_SIBLING_STREAK = 2
 
 const TOP_LABELS = {
   TRIPLE: 'ตอง AAA',
@@ -16,6 +18,24 @@ export function isSibling(a, b) {
   if (!Number.isInteger(left) || !Number.isInteger(right) || left === right) return false
   const difference = Math.abs(left - right)
   return difference === 1 || difference === 9
+}
+
+export function isSequentialTop(top3) {
+  const value = String(top3 ?? '')
+  if (!/^\d{3}$/.test(value)) return false
+
+  const digits = value.split('').map(Number)
+  if (new Set(digits).size !== 3) return false
+
+  const [a, b, c] = digits
+  const firstStep = (b - a + 10) % 10
+  const secondStep = (c - b + 10) % 10
+  return (firstStep === 1 && secondStep === 1)
+    || (firstStep === 9 && secondStep === 9)
+}
+
+function topDigitSignature(top3) {
+  return String(top3).split('').sort().join('')
 }
 
 export function classifyTop(top3) {
@@ -57,6 +77,9 @@ export function inspectSyntraXRow(row) {
     siblings,
     hasSibling: siblings.length > 0,
     hasDouble: topDouble || bottomDouble,
+    hasTriple: top.type === 'TRIPLE',
+    isSequentialTop: isSequentialTop(normalized.top3),
+    topDigitSignature: topDigitSignature(normalized.top3),
   }
 }
 
@@ -71,6 +94,37 @@ function consecutiveCount(items, predicate) {
 
 function uniqueText(values) {
   return [...new Set(values.filter(Boolean))]
+}
+
+function findLatestEventIndex(items, predicate) {
+  for (let index = 0; index < items.length - 1; index += 1) {
+    if (predicate(items[index], items[index + 1])) return index
+  }
+  return -1
+}
+
+function trackedSignal(eventIndex, status, reason) {
+  const active = eventIndex >= 0 && eventIndex < PATTERN_TRACK_WINDOW
+  const round = active ? eventIndex + 1 : null
+
+  return {
+    active,
+    status: active ? status : 'NORMAL',
+    reason: active ? reason : null,
+    round,
+    total: PATTERN_TRACK_WINDOW,
+    remaining: active ? PATTERN_TRACK_WINDOW - round + 1 : 0,
+  }
+}
+
+function tripleFlowReason(newer, older) {
+  const rotation = newer.topDigitSignature === older.topDigitSignature
+  const sequence = newer.isSequentialTop && older.isSequentialTop
+
+  if (rotation && sequence) return 'ROTATION_SEQUENCE'
+  if (rotation) return 'ROTATION'
+  if (sequence) return 'SEQUENCE'
+  return null
 }
 
 export function analyzeSyntraXPattern(source, history = [], rud = []) {
@@ -88,12 +142,43 @@ export function analyzeSyntraXPattern(source, history = [], rud = []) {
   const doubleHits5 = recent.filter((item) => item.hasDouble).length
   const siblingHits5 = recent.filter((item) => item.hasSibling).length
 
-  const doubleWatch = current.hasDouble
-    ? 'ACTIVE'
-    : doubleHits5 >= 2 ? 'WATCH' : 'NORMAL'
-  const siblingWatch = current.hasSibling
-    ? siblingStreak >= 2 ? 'STREAK' : 'ACTIVE'
-    : siblingHits5 >= 2 ? 'WATCH' : 'NORMAL'
+  const doubleSignalActive = siblingStreak >= DOUBLE_SIGNAL_SIBLING_STREAK
+  const doubleSignal = {
+    active: doubleSignalActive,
+    status: doubleSignalActive ? 'WATCH' : 'NORMAL',
+    reason: doubleSignalActive ? 'SIBLING_STREAK' : null,
+    sourceStreak: siblingStreak,
+    round: doubleSignalActive ? 1 : null,
+    total: 1,
+    remaining: doubleSignalActive ? 1 : 0,
+  }
+
+  const doubleEventIndex = findLatestEventIndex(
+    rows,
+    (newer, older) => newer.hasDouble && older.hasDouble,
+  )
+  const siblingSignal = trackedSignal(doubleEventIndex, 'TRACK', 'DOUBLE_STREAK')
+
+  let tripleEventIndex = -1
+  let tripleReason = null
+  for (let index = 0; index < rows.length - 1; index += 1) {
+    const reason = tripleFlowReason(rows[index], rows[index + 1])
+    if (!reason) continue
+    tripleEventIndex = index
+    tripleReason = reason
+    break
+  }
+  const tripleSignal = trackedSignal(tripleEventIndex, 'WATCH', tripleReason)
+
+  const doubleWatch = doubleSignal.active
+    ? doubleSignal.status
+    : current.hasDouble ? 'ACTIVE' : 'NORMAL'
+  const siblingWatch = siblingSignal.active
+    ? siblingSignal.status
+    : current.hasSibling ? 'ACTIVE' : 'NORMAL'
+  const tripleWatch = tripleSignal.active
+    ? tripleSignal.status
+    : current.hasTriple ? 'ACTIVE' : 'NORMAL'
 
   const doublePicks = uniqueText([
     current.top.type === 'TRIPLE' || current.top.type === 'AAB'
@@ -114,6 +199,12 @@ export function analyzeSyntraXPattern(source, history = [], rud = []) {
     siblingHits5,
     doubleWatch,
     siblingWatch,
+    tripleWatch,
+    nextSignals: {
+      double: doubleSignal,
+      sibling: siblingSignal,
+      triple: tripleSignal,
+    },
     outputs: {
       doubles: doublePicks,
       siblings: uniqueText(current.siblings.map((item) => item.pair)),
