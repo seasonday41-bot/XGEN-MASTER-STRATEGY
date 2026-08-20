@@ -177,7 +177,7 @@ describe('WIN6XGEN CORE', () => {
     }
 
     expect(thrown).toMatchObject({ code: 'INSUFFICIENT_WIN_DIGITS' })
-    expect(thrown.details.candidatePool).toEqual([1])
+    expect(thrown.details.candidatePool).toEqual([1, 4])
     expect(thrown.details).not.toHaveProperty('shadowDigitsAdded')
   })
 
