@@ -4,16 +4,34 @@ function spaced(values, empty = '—') {
 
 function patternText(pattern) {
   const current = pattern?.current
-  if (!current) return 'ปกติ'
-  const parts = [current.top.label]
-  if (current.bottomDouble) parts.push(`ล่างเบิ้ล ${current.bottomDoublePair}`)
-  if (current.siblings.length) parts.push(`พี่น้อง ${current.siblings.map((item) => item.pair).join(' • ')}`)
-  return parts.join(' • ')
+  if (!current) return ''
+  return current.top.label || ''
 }
 
 function win6Text(result) {
   const reserve = Number.isInteger(result.reserve) ? ` (${result.reserve})` : ''
   return `✨ WIN6 ${spaced(result.win6)}${reserve}`
+}
+
+function patternLines(result) {
+  const current = result.pattern?.current
+  if (!current) return []
+
+  const lines = []
+
+  if (current.top?.label) {
+    lines.push(`🧬 ${patternText(result.pattern)}`)
+  }
+
+  if (current.bottomDouble && current.bottomDoublePair) {
+    lines.push(`🎲 เบิ้ล ${current.bottomDoublePair}`)
+  }
+
+  if (current.siblings?.length) {
+    lines.push(`👥 พี่น้อง ${current.siblings.map((item) => item.pair).join(' • ')}`)
+  }
+
+  return lines
 }
 
 export function formatCopyText(result) {
@@ -23,10 +41,9 @@ export function formatCopyText(result) {
     '',
     `⚡ รูด ${spaced(result.rud)}`,
     win6Text(result),
+    ...patternLines(result),
     `🎯 เจาะ 2 ${spaced(result.pin2.map((item) => item.pair))}`,
     `🎯 เจาะ 3 ${spaced(result.pin3.map((item) => item.triple))}`,
-    '',
-    `🧬 SyntraX ${patternText(result.pattern)}`,
   ].join('\n')
 }
 
