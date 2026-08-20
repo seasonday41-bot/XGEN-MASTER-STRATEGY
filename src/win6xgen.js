@@ -183,7 +183,7 @@ export function collectFirstFoundWinDigits(history, fg) {
 
   const f = validateSearchDigit(fg?.f, 'F')
   const g = validateSearchDigit(fg?.g, 'G')
-  const candidatePool = uniqueFirst([f, g]) // lock FG
+  const candidatePool = uniqueFirst([f, g]) // fix syntax
   const phases = []
 
   for (const search of buildSearchPhases(f, g)) {
