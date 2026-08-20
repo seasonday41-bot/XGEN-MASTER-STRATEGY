@@ -11,13 +11,18 @@ function patternText(pattern) {
   return parts.join(' • ')
 }
 
+function win6Text(result) {
+  const reserve = Number.isInteger(result.reserve) ? ` (${result.reserve})` : ''
+  return `✨ WIN6 ${spaced(result.win6)}${reserve}`
+}
+
 export function formatCopyText(result) {
   return [
     `🍀 WIN6XGEN | ${result.marketName}`,
     `${result.source.top3}-${result.source.bottom2}`,
     '',
     `⚡ รูด ${spaced(result.rud)}`,
-    `✨ WIN6 ${spaced(result.win6)}`,
+    win6Text(result),
     `🎯 เจาะ 2 ${spaced(result.pin2.map((item) => item.pair))}`,
     `🎯 เจาะ 3 ${spaced(result.pin3.map((item) => item.triple))}`,
     '',
@@ -28,7 +33,7 @@ export function formatCopyText(result) {
 export function formatCopySection(result, section) {
   const sections = {
     rud: `⚡ รูด ${spaced(result.rud)}`,
-    win6: `✨ WIN6 ${spaced(result.win6)}`,
+    win6: win6Text(result),
     pin2: `🎯 เจาะ 2 ${spaced(result.pin2.map((item) => item.pair))}`,
     pin3: `🎯 เจาะ 3 ${spaced(result.pin3.map((item) => item.triple))}`,
   }

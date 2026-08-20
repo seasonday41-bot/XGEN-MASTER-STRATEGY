@@ -31,8 +31,14 @@ describe('WIN6XGEN copy', () => {
   })
 
   it('คัดลอกแยกแต่ละส่วนได้', () => {
-    const result = example()
+    const result = { ...example(), reserve: 8 }
     expect(formatCopySection(result, 'rud')).toBe('⚡ รูด 4 • 1')
+    expect(formatCopySection(result, 'win6')).toBe('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8 (8)')
+    expect(formatCopyText(result)).toContain('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8 (8)')
+  })
+
+  it('ไม่เติมวงเล็บสำรองเมื่อไม่มีเลขสำรอง', () => {
+    const result = example()
     expect(formatCopySection(result, 'win6')).toBe('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8')
   })
 })
