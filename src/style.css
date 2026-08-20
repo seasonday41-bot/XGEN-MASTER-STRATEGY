@@ -620,8 +620,12 @@ button:focus-visible, input:focus-visible, summary:focus-visible {
 .pattern-badge[data-pattern='TRIPLE'], .pattern-badge[data-pattern='AAB'], .pattern-badge[data-pattern='ABB'] { background: linear-gradient(180deg, #c22a2d, #7f1016); }
 .pattern-signals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .pattern-signals > div { min-width: 0; min-height: 91px; display: grid; align-content: start; gap: 3px; padding: 10px; border: 1px solid rgba(179,127,28,.24); border-radius: 14px; background: rgba(255,251,235,.66); }
+.pattern-signals > div[data-state='WATCH'] { border-color: rgba(185,31,42,.48); background: linear-gradient(145deg, rgba(255,245,224,.92), rgba(255,226,213,.78)); box-shadow: inset 0 1px rgba(255,255,255,.7), 0 5px 12px rgba(139,25,30,.09); }
+.pattern-signals > div[data-state='TRACK'] { border-color: rgba(7,122,88,.5); background: linear-gradient(145deg, rgba(245,255,237,.95), rgba(218,242,213,.8)); box-shadow: inset 0 1px rgba(255,255,255,.7), 0 5px 12px rgba(3,91,66,.1); }
 .pattern-signals small { color: #907247; font-size: 8px; font-weight: 820; }
 .pattern-signals b { overflow: hidden; color: var(--jade-700); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.pattern-signals > div[data-state='WATCH'] b { color: #a81624; }
+.pattern-signals > div[data-state='TRACK'] b { color: #00694f; }
 .pattern-signals span { color: #665847; font-size: 8px; line-height: 1.45; }
 .pattern-card > p { margin: 11px 0 0; color: #806d57; font-size: 8px; text-align: center; }
 
