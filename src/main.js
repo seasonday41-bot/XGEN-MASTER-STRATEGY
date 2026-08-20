@@ -92,15 +92,15 @@ app.innerHTML = `
 
       <article class="pattern-card ornate-card">
         <div class="pattern-head">
-          <div><small>SYNTRAX PATTERN MODULE</small><h2>โครงสร้างรอบล่าสุด</h2></div>
+          <div><small>PATTERN FLOW</small><h2>สัญญาณรอบถัดไป</h2></div>
           <span id="topPattern" class="pattern-badge">NORMAL</span>
         </div>
         <div class="pattern-signals">
-          <div><small>เบิ้ล</small><b id="doubleWatch">NORMAL</b><span id="doubleDetail">—</span></div>
-          <div><small>พี่น้อง</small><b id="siblingWatch">NORMAL</b><span id="siblingDetail">—</span></div>
-          <div><small>หาม / ตอง</small><b id="specialPattern">ไม่มี</b><span id="patternFlow">—</span></div>
+          <div><small>เบิ้ล</small><b id="doubleWatch">ปกติ</b><span id="doubleDetail">—</span></div>
+          <div><small>พี่น้อง</small><b id="siblingWatch">ปกติ</b><span id="siblingDetail">—</span></div>
+          <div><small>ตอง</small><b id="tripleWatch">ปกติ</b><span id="tripleDetail">—</span></div>
         </div>
-        <p>สัญญาณเสริมจากข้อมูลย้อนหลัง เพื่อประกอบการตัดสินใจในแต่ละงวด</p>
+        <p>ใช้เป็นสัญญาณติดตามเท่านั้น ไม่ใช่การยืนยันผล</p>
       </article>
 
       <article class="info-card ornate-card">
@@ -174,8 +174,8 @@ const elements = {
   doubleDetail: document.querySelector('#doubleDetail'),
   siblingWatch: document.querySelector('#siblingWatch'),
   siblingDetail: document.querySelector('#siblingDetail'),
-  specialPattern: document.querySelector('#specialPattern'),
-  patternFlow: document.querySelector('#patternFlow'),
+  tripleWatch: document.querySelector('#tripleWatch'),
+  tripleDetail: document.querySelector('#tripleDetail'),
   infoMarket: document.querySelector('#infoMarket'),
   historyUsed: document.querySelector('#historyUsed'),
   systemStatus: document.querySelector('#systemStatus'),
@@ -284,8 +284,8 @@ function renderMarketList(query = '') {
 
 function patternStatusLabel(status) {
   return {
-    ACTIVE: 'กำลังมา',
-    STREAK: 'ไหลต่อเนื่อง',
+    ACTIVE: 'พบล่าสุด',
+    TRACK: 'ติดตาม',
     WATCH: 'เฝ้าดู',
     NORMAL: 'ปกติ',
   }[status] || status
@@ -293,23 +293,32 @@ function patternStatusLabel(status) {
 
 function renderPattern(pattern) {
   const current = pattern.current
+  const signals = pattern.nextSignals
   elements.topPattern.textContent = current.top.type
   elements.topPattern.dataset.pattern = current.top.type
-  elements.doubleWatch.textContent = patternStatusLabel(pattern.doubleWatch)
-  elements.doubleDetail.textContent = current.bottomDouble
-    ? `ล่างเบิ้ล ${current.bottomDoublePair}`
-    : pattern.outputs.doubles.length ? `กัน ${pattern.outputs.doubles.join(' • ')}` : `พบ ${pattern.doubleHits5}/${pattern.recentWindow} งวด`
-  elements.siblingWatch.textContent = patternStatusLabel(pattern.siblingWatch)
-  elements.siblingDetail.textContent = current.siblings.length
-    ? current.siblings.map((item) => `${item.slot} ${item.pair}`).join(' • ')
-    : `พบ ${pattern.siblingHits5}/${pattern.recentWindow} งวด`
 
-  const special = [
-    ...pattern.outputs.ham.map((value) => `หาม ${value}`),
-    ...pattern.outputs.triples.map((value) => `ตอง ${value}`),
-  ]
-  elements.specialPattern.textContent = special.join(' • ') || current.top.label
-  elements.patternFlow.textContent = `Sibling Streak ${pattern.siblingStreak} • Double Streak ${pattern.doubleStreak}`
+  elements.doubleWatch.textContent = patternStatusLabel(signals.double.status)
+  elements.doubleDetail.textContent = signals.double.active
+    ? 'จับตารอบถัดไป'
+    : current.hasDouble ? 'รอบล่าสุดพบเบิ้ล' : 'ยังไม่เปิดสัญญาณ'
+
+  elements.siblingWatch.textContent = patternStatusLabel(signals.sibling.status)
+  elements.siblingDetail.textContent = signals.sibling.active
+    ? `ติดตามรอบ ${signals.sibling.round}/${signals.sibling.total}`
+    : current.hasSibling ? 'รอบล่าสุดพบพี่น้อง' : 'ยังไม่เปิดสัญญาณ'
+
+  elements.tripleWatch.textContent = patternStatusLabel(signals.triple.status)
+  elements.tripleDetail.textContent = signals.triple.active
+    ? `ติดตามรอบ ${signals.triple.round}/${signals.triple.total}`
+    : current.hasTriple ? `รอบล่าสุด ${current.row.top3}` : 'ยังไม่เปิดสัญญาณ'
+
+  ;[
+    [elements.doubleWatch, signals.double],
+    [elements.siblingWatch, signals.sibling],
+    [elements.tripleWatch, signals.triple],
+  ].forEach(([element, signal]) => {
+    element.parentElement.dataset.state = signal.active ? signal.status : 'NORMAL'
+  })
 }
 
 function renderHistory() {
