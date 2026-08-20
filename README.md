@@ -1,4 +1,4 @@
-# WIN6XGEN
+#XGEN
 
 Xgen รุ่นใหม่ใช้ข้อมูลย้อนหลังจริงแบบอ่านอย่างเดียวจาก Supabase `six-digit-thai-lao` และมีเครื่องคำนวณเพียงระบบเดียว ไม่มี Percent, Flow, Radar, Shadow หรือ Structural Engine รุ่นเก่าค้างอยู่ใน production source
 
