@@ -133,13 +133,20 @@ describe('WIN6XGEN CORE', () => {
     const history = Array.from({ length: 9 }, () => ({ top3: '111', bottom2: '11' }))
     history[8] = { top3: '145', bottom2: '26' }
 
-    expect(() => collectFirstFoundWinDigits(history, { f: 1, g: 4 })).toThrowError(
-      expect.objectContaining({
-        code: 'INSUFFICIENT_WIN_DIGITS',
-        details: expect.objectContaining({ candidatePool: [1] }),
-      }),
-    )
-  })
+    const error = (() => {
+  try {
+    collectFirstFoundWinDigits(history, { f: 1, g: 4 })
+  } catch (e) {
+    return e
+  }
+})()
+
+expect(error.code).toBe('INSUFFICIENT_WIN_DIGITS')
+expect(error.details.candidatePool).toEqual([1, 4])
+      
+  
+
+  
 
   it('เมื่อ FG ได้ 6 ตัวพอดี จะไม่เปิด F เพียงเพื่อหาตัวสำรอง', () => {
     const result = collectFirstFoundWinDigits([
