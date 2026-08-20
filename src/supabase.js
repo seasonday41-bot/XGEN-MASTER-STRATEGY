@@ -1,8 +1,8 @@
 import { createClient } from '@supabase/supabase-js'
-import { cleanAndValidateHistory } from './data-health.js'
+import { HISTORY_LIMIT, normalizeResult } from './win6xgen.js'
 
-// Publishable keys are intentionally safe for browser clients. Access is still
-// constrained by Postgres grants/RLS and the read-only Xgen RPC functions.
+// Publishable keys are safe in a browser client. Database access remains limited
+// by the read-only RPC grants and RLS policies in six-digit-thai-lao.
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://wxxocsfygxlwaklncmop.supabase.co'
 const supabasePublishableKey =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_eyK3gxO_LoDEMzYriH9DCQ_PUgeiuFC'
@@ -19,93 +19,44 @@ export const supabase = createClient(supabaseUrl, supabasePublishableKey, {
   },
 })
 
-const FG_HISTORY_LIMIT = 30
-const dataHealthCache = new Map()
-const healthKey = (marketKey, limit) => `${marketKey}:${limit}`
-
-export function getLastDataHealth(marketKey, limit = 30) {
-  return dataHealthCache.get(healthKey(marketKey, limit)) || null
-}
-
 export async function loadMarkets() {
   const { data, error } = await supabase.rpc('xgen_list_markets')
-
   if (error) throw error
-  return data
+
+  return (data || [])
+    .filter((item) => /^market_\d{3}$/.test(String(item.market_key || '')))
+    .map((item) => ({
+      market_key: String(item.market_key),
+      market_name: String(item.market_name || item.market_key),
+    }))
 }
 
-function normalizeLatestResult(row) {
-  if (!row) throw new Error('ยังไม่มีผลล่าสุดของตลาดนี้')
+export async function loadRecentResults(marketKey, limit = HISTORY_LIMIT) {
+  if (!/^market_\d{3}$/.test(String(marketKey || ''))) throw new Error('รหัสตลาดไม่ถูกต้อง')
 
-  const top3 = String(row.top3 ?? '').trim().padStart(3, '0')
-  const bottom2 = String(row.bottom2 ?? '').trim().padStart(2, '0')
-  const drawDate = String(row.draw_date ?? '').trim()
-
-  if (!/^\d{3}$/.test(top3) || !/^\d{2}$/.test(bottom2) || !/^\d{4}-\d{2}-\d{2}$/.test(drawDate)) {
-    throw new Error('ผลล่าสุดมีรูปแบบวันที่/3 บน/2 ล่างไม่ถูกต้อง')
-  }
-
-  return { ...row, draw_date: drawDate, top3, bottom2 }
-}
-
-// FG HISTORY CORE ใช้ผลล่าสุดเป็นต้นทาง และอ่านประวัติย้อนหลังเพื่อหา
-// เฉพาะงวดที่มี F และ G อยู่พร้อมกันใน 3 ตัวบน + 2 ตัวล่าง.
-export async function loadLatestResult(marketKey) {
-  const recent = await loadRecentResults(marketKey, FG_HISTORY_LIMIT)
-  const [latest, ...history] = recent
-
-  if (!latest) throw new Error('ยังไม่มีผลล่าสุดของตลาดนี้')
-  return normalizeLatestResult({ ...latest, history })
-}
-
-export async function loadRecentResults(marketKey, limit = 4) {
+  const safeLimit = Math.min(Math.max(Number(limit) || HISTORY_LIMIT, 1), HISTORY_LIMIT)
   const { data, error } = await supabase.rpc('xgen_recent_results', {
     p_market_key: marketKey,
-    p_limit: limit,
+    p_limit: safeLimit,
   })
-
   if (error) throw error
 
-  const guarded = cleanAndValidateHistory(data, limit)
-  dataHealthCache.set(healthKey(marketKey, limit), guarded.health)
+  const normalized = (data || []).map(normalizeResult)
+  if (normalized.some((row) => !row)) throw new Error('พบผลย้อนหลังที่รูปแบบไม่ถูกต้อง')
 
-  if (!guarded.canAnalyze) {
-    const problem = guarded.health.issues.find((item) => item.severity === 'critical')
-    const guardError = new Error(problem?.message || 'Data Guard พบข้อมูลผิดปกติและหยุดการคำนวณ')
-    guardError.name = 'XgenDataGuardError'
-    guardError.health = guarded.health
-    throw guardError
-  }
+  const rows = normalized.filter(Boolean)
+  const dates = rows.map((row) => row.draw_date)
+  if (new Set(dates).size !== dates.length) throw new Error('พบวันที่ซ้ำในข้อมูลตลาดนี้')
 
-  return guarded.cleaned
+  rows.sort((left, right) => right.draw_date.localeCompare(left.draw_date))
+  return rows
 }
 
-export async function loadAllRecentResults(limit = 30) {
-  const { data, error } = await supabase.rpc('xgen_recent_results_all', {
-    p_limit: limit,
-  })
+export async function loadMarketData(marketKey) {
+  const rows = await loadRecentResults(marketKey, HISTORY_LIMIT)
+  const [latest, ...history] = rows
+  if (!latest) throw new Error('ยังไม่มีผลของตลาดนี้')
+  if (!history.length) throw new Error('ข้อมูลย้อนหลังไม่พอสำหรับ WIN6XGEN')
 
-  if (error) throw error
-
-  const grouped = new Map()
-  ;(data || []).forEach((row) => {
-    const current = grouped.get(row.market_key) || {
-      marketKey: row.market_key,
-      marketName: row.market_name,
-      history: [],
-    }
-    current.history.push({ draw_date: row.draw_date, top3: row.top3, bottom2: row.bottom2 })
-    grouped.set(row.market_key, current)
-  })
-
-  return [...grouped.values()].map((item) => {
-    const guarded = cleanAndValidateHistory(item.history, limit)
-    dataHealthCache.set(healthKey(item.marketKey, limit), guarded.health)
-    return {
-      ...item,
-      history: guarded.cleaned,
-      canAnalyze: guarded.canAnalyze,
-      health: guarded.health,
-    }
-  })
+  return { ...latest, history, allRows: rows }
 }

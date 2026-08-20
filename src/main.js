@@ -1,260 +1,226 @@
 import '@fontsource-variable/noto-sans-thai'
 import './style.css'
-import { analyzePercentCore } from './formula.js'
-import { formatCopyText } from './copy.js'
-import { loadLatestResult, loadMarkets } from './supabase.js'
+import { formatCopySection, formatCopyText } from './copy.js'
+import { analyzeSyntraXPattern } from './syntrax-pattern.js'
+import { loadMarketData, loadMarkets } from './supabase.js'
+import { analyzeWin6Xgen } from './win6xgen.js'
 
+const DRAGON_ASSET = 'https://raw.githubusercontent.com/seasonday41-bot/SyntraX/main/assets/dragon.svg'
 const app = document.querySelector('#app')
 
 app.innerHTML = `
-  <main class="shell">
-    <div class="ambient-lights" aria-hidden="true">
-      <i></i><i></i><i></i><i></i><i></i>
-    </div>
+  <main class="app-shell">
+    <div class="sky-glow" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
 
-    <header class="hero">
-      <div class="hero-rings" aria-hidden="true"><i></i><i></i><i></i></div>
-      <div class="brand-mark" aria-hidden="true"><b>X</b><small>GEN</small></div>
-      <div class="hero-copy">
-        <p class="eyebrow"><i></i> FG SHADOW CORE</p>
-        <h1>Xgen <em>ELITE</em></h1>
-        <p class="subtitle">MOD10 F/G • Shadow Pairs • First Match</p>
+    <header class="temple-hero">
+      <button id="menuButton" class="round-menu" type="button" aria-label="เลือกตลาด"><span></span><span></span><span></span></button>
+      <div class="fortune-charm jade" aria-hidden="true"><b>福</b><i></i></div>
+      <img class="hero-dragon" src="${DRAGON_ASSET}" alt="" aria-hidden="true">
+      <div class="hero-brand">
+        <div class="crown-mark" aria-hidden="true"><i></i><b>◆</b><i></i></div>
+        <h1>XGEN</h1>
+        <p>MASTER STRATEGY</p>
+        <div class="brand-rule"><i></i><span>WIN6XGEN</span><i></i></div>
+        <strong>แนวทางตัวเลขส่วนตัวของคุณ</strong>
       </div>
-      <div class="hero-seal">
-        <span><i></i> LIVE</span>
-        <strong data-market-total>—</strong>
-        <small>ตลาด</small>
-      </div>
-      <div class="hero-footer">
-        <span>◆ FG + SHADOW SET</span>
-        <span>FIRST PAIR MATCH</span>
-      </div>
+      <div class="fortune-charm ruby" aria-hidden="true"><b>財</b><i></i></div>
+      <div class="hero-lotus left" aria-hidden="true">🪷</div>
+      <div class="hero-lotus right" aria-hidden="true">🪷</div>
     </header>
 
-    <section id="controlCard" class="control-card">
-      <button id="marketToggle" class="control-heading" type="button" aria-expanded="true" aria-controls="marketPicker">
-        <div class="control-symbol" aria-hidden="true">⌕</div>
-        <div><p>MARKET SELECTOR</p><h2 id="pickerTitle">ค้นหาและเลือกตลาด</h2></div>
-        <span class="heading-meta">
-          <span class="market-count"><b data-market-total>—</b><span> ตลาดพร้อมใช้</span></span>
-          <i class="collapse-chevron" aria-hidden="true"></i>
-        </span>
+    <section class="quick-controls" aria-label="ตัวเลือกข้อมูล">
+      <button id="marketButton" class="control-pill market-pill" type="button">
+        <span id="marketFlag" class="flag-orb">🌐</span>
+        <b id="marketButtonName">กำลังโหลดตลาด</b>
+        <i>⌄</i>
       </button>
-
-      <div id="marketPicker" class="market-picker">
-        <label class="sr-only" for="marketSearch">ค้นหาตลาด</label>
-        <div class="search-field">
-          <span aria-hidden="true">⌕</span>
-          <input id="marketSearch" type="search" inputmode="search" autocomplete="off"
-            placeholder="พิมพ์ชื่อตลาด เช่น ลาวพัฒนา" aria-controls="searchResults" aria-expanded="false" disabled>
-          <button id="clearSearch" class="clear-search" type="button" aria-label="ล้างคำค้นหา" hidden>×</button>
-        </div>
-        <div id="searchResults" class="search-results hidden" role="listbox" aria-label="ผลการค้นหาตลาด"></div>
-        <div class="select-label"><span>หรือเลือกจากทั้งหมด</span></div>
-        <div class="select-row">
-          <div class="select-wrap">
-            <select id="market" aria-label="เลือกตลาด" disabled>
-              <option>กำลังโหลดตลาด...</option>
-            </select>
-          </div>
-          <button id="refresh" class="icon-button" type="button" aria-label="คำนวณใหม่" title="คำนวณใหม่">↻</button>
-        </div>
-      </div>
-      <div id="status" class="status loading"><span></span>กำลังเชื่อมต่อข้อมูลย้อนหลัง</div>
+      <button id="dateButton" class="control-pill date-pill" type="button">
+        <span class="calendar-icon" aria-hidden="true">▦</span>
+        <b id="drawDate">—</b>
+        <i>⌄</i>
+      </button>
+      <button id="historyButton" class="history-button" type="button">
+        <span aria-hidden="true">✦</span><b>ดูประวัติ</b>
+      </button>
     </section>
 
-    <section id="emptyState" class="empty-card">
-      <div class="radar" aria-hidden="true"><span></span></div>
-      <strong>พร้อมเปิด FG SHADOW CORE</strong>
-      <p>เลือกตลาดเพื่อหา F/G และเลขเงา แล้วไล่ย้อนหลังหางวดแรกที่มีคู่ค้นครบ</p>
-    </section>
+    <div id="status" class="status loading" role="status"><i></i><span>กำลังเชื่อมต่อ six-digit-thai-lao</span></div>
 
     <section id="result" class="result hidden" aria-live="polite">
-      <div class="source-head">
-        <div class="market-identity">
-          <span aria-hidden="true">◆</span>
-          <div><p class="section-kicker">สนามวิเคราะห์</p><h2 id="marketName">—</h2></div>
-        </div>
-        <div class="source-result">
-          <small>ผลล่าสุด</small>
-          <div class="source-number"><span id="sourceTop">—</span><b>–</b><span id="sourceBottom">—</span></div>
-        </div>
-      </div>
+      <article class="latest-palace ornate-card">
+        <div class="ornate-corner tl"></div><div class="ornate-corner tr"></div>
+        <div class="ornate-corner bl"></div><div class="ornate-corner br"></div>
+        <img class="card-dragon left" src="${DRAGON_ASSET}" alt="" aria-hidden="true">
+        <img class="card-dragon right" src="${DRAGON_ASSET}" alt="" aria-hidden="true">
+        <div class="section-banner"><span>ผลล่าสุด</span></div>
+        <div class="latest-number"><b id="sourceTop">---</b><i>–</i><b id="sourceBottom" class="bottom">--</b></div>
 
-      <div class="result-grid">
-        <article class="result-card rud-card">
-          <div class="card-label"><span>⚡</span><div><b>รูด FG</b><small>MOD10 • รองรับกฎเลขตอง</small></div></div>
-          <div id="fgDigits" class="rud-numbers"></div>
+        <div class="fgh-stage">
+          <div class="formula-gem f-gem"><small>F <span id="fRule">2 ตัวบน</span></small><b id="fDigit">—</b><em>mod 10</em></div>
+          <div class="lotus-seal" aria-hidden="true"><span>🪷</span></div>
+          <div class="formula-gem g-gem"><small>G <span>2 ตัวล่าง</span></small><b id="gDigit">—</b><em>mod 10</em></div>
+          <div class="formula-gem h-gem"><small>H <span>F + G</span></small><b id="hDigit">—</b><em>mod 10</em></div>
+        </div>
+
+        <div class="rud-banner">
+          <span>รูดหลัก</span>
+          <b id="rudMain">—</b><i>•</i><b id="rudSub" class="ruby-text">—</b>
+        </div>
+      </article>
+
+      <section class="output-grid">
+        <article class="win-card ornate-card">
+          <div class="mini-banner">WIN 6 ตัว</div>
+          <div id="win6" class="win-digits"></div>
+          <div class="reserve-line"><span>สำรอง</span><b id="reserve">—</b></div>
+          <div id="modGroups" class="mod-groups"></div>
         </article>
 
-        <article class="result-card win-card">
-          <div class="card-label"><span>✦</span><div><b>ชุดหลัก</b><small>FG + เงา • เติมจากงวดแรก</small></div></div>
-          <div id="win6" class="digit-row"></div>
-          <p id="seventh" class="note"></p>
-        </article>
-      </div>
+        <div class="drill-stack">
+          <article class="drill-card emerald-card">
+            <h2><span>เจาะ 2 ตัว</span><i>◇</i></h2>
+            <div id="pin2" class="pick-row"></div>
+          </article>
+          <article class="drill-card emerald-card">
+            <h2><span>เจาะ 3 ตัว</span><i>◇</i></h2>
+            <div id="pin3" class="pick-row triple-row"></div>
+          </article>
+        </div>
+      </section>
 
-      <article class="result-card double-card">
-        <div class="double-analysis">
-          <div class="card-label"><span>📚</span><div><b>งวดแรกที่เจอคู่</b><small>ค้นจากล่าสุดย้อนกลับ</small></div></div>
-          <strong id="matchCount">—</strong>
-          <p id="matchPreview">—</p>
+      <article class="pattern-card ornate-card">
+        <div class="pattern-head">
+          <div><small>SYNTRAX PATTERN MODULE</small><h2>โครงสร้างรอบล่าสุด</h2></div>
+          <span id="topPattern" class="pattern-badge">NORMAL</span>
         </div>
-        <div class="double-picks">
-          <small>เงา FG</small>
-          <div id="secondary" class="double-numbers"></div>
+        <div class="pattern-signals">
+          <div><small>เบิ้ล</small><b id="doubleWatch">NORMAL</b><span id="doubleDetail">—</span></div>
+          <div><small>พี่น้อง</small><b id="siblingWatch">NORMAL</b><span id="siblingDetail">—</span></div>
+          <div><small>หาม / ตอง</small><b id="specialPattern">ไม่มี</b><span id="patternFlow">—</span></div>
         </div>
+        <p>SyntraX อ่าน Pattern แยกจาก WIN6 CORE และไม่เปลี่ยน WIN6 หรือรูด F/G</p>
       </article>
 
-      <article class="result-card pin-card">
-        <div class="pin-header">
-          <div>
-            <div class="card-label"><span>◎</span><div><b>เจาะ 2</b><small>FG + ชุดหลัก</small></div></div>
-            <p>คัดจากชุดหลักและหลักฐานของงวดแรกที่เจอ</p>
+      <article class="info-card ornate-card">
+        <h2>ข้อมูลเพิ่มเติม</h2>
+        <div class="info-grid">
+          <div><span class="info-icon">◉</span><small>ประเภท</small><b id="infoMarket">—</b></div>
+          <div><span class="info-icon">▣</span><small>อ้างอิงข้อมูล</small><b id="historyUsed">—</b></div>
+          <div><span class="info-icon">♢</span><small>โครงสร้าง</small><b id="partitionType">—</b></div>
+        </div>
+        <details class="proof-details">
+          <summary>ดูหลักฐานการคำนวณ WIN6XGEN</summary>
+          <div class="proof-grid">
+            <p><span>ค้นย้อนหลัง</span><b id="searchMode">—</b></p>
+            <p><span>Candidate Pool</span><b id="candidatePool">—</b></p>
+            <p><span>คู่เติม</span><b id="fillPair">—</b></p>
           </div>
-          <button id="copy" class="copy-button" type="button" aria-label="คัดลอกผล FG SHADOW CORE">คัดลอกชุด</button>
-        </div>
-        <div id="pin2" class="pair-row"></div>
+        </details>
+        <p class="disclaimer">* เป็นแนวทางจากโครงสร้างตัวเลขและข้อมูลย้อนหลัง ไม่การันตีผล 100%</p>
       </article>
 
-      <article class="result-card pin-card">
-        <div class="pin-header">
-          <div>
-            <div class="card-label"><span>🎯</span><div><b>เจาะ 3 ปกติ</b><small>เลขไม่ซ้ำ • TOP 3 + EXTRA 2</small></div></div>
-            <p>คัดจาก FG + ชุดหลัก โดยไม่สร้างเลขซ้ำในชุด 3 ตัว</p>
-          </div>
-        </div>
-        <div id="pin3" class="pair-row"></div>
-        <div id="pin3Extra" class="pair-row"></div>
-      </article>
-
-      <article class="result-card double-card">
-        <div class="double-analysis">
-          <div class="card-label"><span>↻</span><div><b>Pattern จากงวดแรก</b><small>FIRST MATCH EVIDENCE</small></div></div>
-          <strong id="doublePattern">—</strong>
-          <p id="triplePattern">—</p>
-        </div>
-        <div class="double-picks">
-          <small>พี่น้อง</small>
-          <div id="siblings" class="double-numbers"></div>
-        </div>
-      </article>
-
-      <p class="note">ปกติ F=(หลักสิบ+หลักหน่วยของ 3 บน) mod10 • ถ้า 3 บนเป็นเลขตอง F=(A+B+C) mod10 • G=(2 ล่างบวกกัน) mod10 • ล็อก FG + เงา แล้วค้นคู่ F-เงาG / F-G / G-เงาF จากงวดล่าสุดย้อนหลัง • เจองวดแรกแล้วเติมเลขใหม่ทั้งหมด</p>
+      <section class="copy-actions" aria-label="คัดลอกผล">
+        <button type="button" data-copy="rud"><span>▣</span><b>คัดลอก<br>รูด</b></button>
+        <button type="button" data-copy="win6" class="ruby-button"><span>▣</span><b>คัดลอก<br>WIN6</b></button>
+        <button type="button" data-copy="pin2"><span>▣</span><b>คัดลอก<br>เจาะ 2</b></button>
+        <button type="button" data-copy="pin3" class="ruby-button"><span>▣</span><b>คัดลอก<br>เจาะ 3</b></button>
+      </section>
+      <button id="copyAll" class="copy-all" type="button">คัดลอกผลทั้งหมด</button>
     </section>
+
+    <div class="bottom-spacer" aria-hidden="true"></div>
   </main>
+
+  <nav class="bottom-nav" aria-label="เมนูหลัก">
+    <button id="navHome" class="active" type="button"><span>⌂</span><b>หน้าหลัก</b></button>
+    <button id="navMarket" type="button"><span>⌕</span><b>ค้นหางวด</b></button>
+    <button id="navAnalyze" type="button"><span>☯</span><b>วิเคราะห์</b></button>
+    <button id="navCopy" type="button"><span>☆</span><b>คัดลอก</b></button>
+    <button id="navRefresh" type="button"><span>↻</span><b>รีเฟรช</b></button>
+  </nav>
+
+  <dialog id="marketDialog" class="sheet-dialog">
+    <div class="sheet-head"><div><small>MARKET SELECTOR</small><h2>เลือกตลาด</h2></div><button type="button" data-close="marketDialog">×</button></div>
+    <label class="market-search"><span>⌕</span><input id="marketSearch" type="search" placeholder="ค้นหา เช่น ลาวพัฒนา" autocomplete="off"></label>
+    <div id="marketList" class="market-list"></div>
+  </dialog>
+
+  <dialog id="historyDialog" class="sheet-dialog history-dialog">
+    <div class="sheet-head"><div><small>RECENT RESULTS</small><h2 id="historyTitle">ประวัติผล</h2></div><button type="button" data-close="historyDialog">×</button></div>
+    <div id="historyList" class="history-list"></div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status">คัดลอกแล้ว ✓</div>
 `
 
-const els = {
-  marketTotals: document.querySelectorAll('[data-market-total]'),
-  controlCard: document.querySelector('#controlCard'),
-  marketToggle: document.querySelector('#marketToggle'),
-  pickerTitle: document.querySelector('#pickerTitle'),
-  marketSearch: document.querySelector('#marketSearch'),
-  clearSearch: document.querySelector('#clearSearch'),
-  searchResults: document.querySelector('#searchResults'),
-  market: document.querySelector('#market'),
-  refresh: document.querySelector('#refresh'),
+const elements = {
+  menuButton: document.querySelector('#menuButton'),
+  marketButton: document.querySelector('#marketButton'),
+  marketButtonName: document.querySelector('#marketButtonName'),
+  marketFlag: document.querySelector('#marketFlag'),
+  dateButton: document.querySelector('#dateButton'),
+  drawDate: document.querySelector('#drawDate'),
+  historyButton: document.querySelector('#historyButton'),
   status: document.querySelector('#status'),
-  empty: document.querySelector('#emptyState'),
   result: document.querySelector('#result'),
-  marketName: document.querySelector('#marketName'),
   sourceTop: document.querySelector('#sourceTop'),
   sourceBottom: document.querySelector('#sourceBottom'),
-  fgDigits: document.querySelector('#fgDigits'),
+  fRule: document.querySelector('#fRule'),
+  fDigit: document.querySelector('#fDigit'),
+  gDigit: document.querySelector('#gDigit'),
+  hDigit: document.querySelector('#hDigit'),
+  rudMain: document.querySelector('#rudMain'),
+  rudSub: document.querySelector('#rudSub'),
   win6: document.querySelector('#win6'),
-  seventh: document.querySelector('#seventh'),
-  matchCount: document.querySelector('#matchCount'),
-  matchPreview: document.querySelector('#matchPreview'),
-  secondary: document.querySelector('#secondary'),
+  reserve: document.querySelector('#reserve'),
+  modGroups: document.querySelector('#modGroups'),
   pin2: document.querySelector('#pin2'),
   pin3: document.querySelector('#pin3'),
-  pin3Extra: document.querySelector('#pin3Extra'),
-  doublePattern: document.querySelector('#doublePattern'),
-  triplePattern: document.querySelector('#triplePattern'),
-  siblings: document.querySelector('#siblings'),
-  copy: document.querySelector('#copy'),
+  topPattern: document.querySelector('#topPattern'),
+  doubleWatch: document.querySelector('#doubleWatch'),
+  doubleDetail: document.querySelector('#doubleDetail'),
+  siblingWatch: document.querySelector('#siblingWatch'),
+  siblingDetail: document.querySelector('#siblingDetail'),
+  specialPattern: document.querySelector('#specialPattern'),
+  patternFlow: document.querySelector('#patternFlow'),
+  infoMarket: document.querySelector('#infoMarket'),
+  historyUsed: document.querySelector('#historyUsed'),
+  partitionType: document.querySelector('#partitionType'),
+  searchMode: document.querySelector('#searchMode'),
+  candidatePool: document.querySelector('#candidatePool'),
+  fillPair: document.querySelector('#fillPair'),
+  copyActions: document.querySelector('.copy-actions'),
+  copyAll: document.querySelector('#copyAll'),
+  marketDialog: document.querySelector('#marketDialog'),
+  marketSearch: document.querySelector('#marketSearch'),
+  marketList: document.querySelector('#marketList'),
+  historyDialog: document.querySelector('#historyDialog'),
+  historyTitle: document.querySelector('#historyTitle'),
+  historyList: document.querySelector('#historyList'),
+  toast: document.querySelector('#toast'),
 }
 
-let markets = []
-let current = null
-let matchedMarkets = []
-
-function setPickerExpanded(expanded) {
-  els.controlCard.classList.toggle('is-collapsed', !expanded)
-  els.marketToggle.setAttribute('aria-expanded', String(expanded))
-  els.pickerTitle.textContent = expanded
-    ? 'ค้นหาและเลือกตลาด'
-    : (current?.marketName || els.market.selectedOptions[0]?.textContent || 'เลือกตลาด')
-  if (!expanded) closeSearchResults()
+const state = {
+  markets: [],
+  selectedMarket: null,
+  current: null,
+  loading: false,
 }
 
-function normalizeMarketName(value) {
-  return value.normalize('NFC').toLocaleLowerCase('th-TH').replace(/\s+/g, '')
-}
-
-function closeSearchResults() {
-  els.searchResults.classList.add('hidden')
-  els.marketSearch.setAttribute('aria-expanded', 'false')
-}
-
-function renderSearchResults(query) {
-  const normalizedQuery = normalizeMarketName(query.trim())
-  els.clearSearch.hidden = normalizedQuery.length === 0
-
-  if (!normalizedQuery) {
-    matchedMarkets = []
-    closeSearchResults()
-    return
-  }
-
-  matchedMarkets = markets
-    .filter((item) => normalizeMarketName(item.market_name).includes(normalizedQuery))
-    .slice(0, 10)
-
-  els.searchResults.replaceChildren()
-
-  if (!matchedMarkets.length) {
-    const empty = document.createElement('p')
-    empty.className = 'search-empty'
-    empty.textContent = 'ไม่พบตลาดที่ค้นหา'
-    els.searchResults.append(empty)
-  } else {
-    matchedMarkets.forEach((item) => {
-      const button = document.createElement('button')
-      button.type = 'button'
-      button.className = 'search-result'
-      button.dataset.marketKey = item.market_key
-      button.setAttribute('role', 'option')
-
-      const name = document.createElement('span')
-      name.textContent = item.market_name
-      const action = document.createElement('small')
-      action.textContent = 'เลือก ›'
-      button.append(name, action)
-      els.searchResults.append(button)
-    })
-  }
-
-  els.searchResults.classList.remove('hidden')
-  els.marketSearch.setAttribute('aria-expanded', 'true')
-}
-
-function selectSearchedMarket(marketKey) {
-  if (!markets.some((item) => item.market_key === marketKey)) return
-  els.market.value = marketKey
-  els.marketSearch.value = ''
-  els.clearSearch.hidden = true
-  closeSearchResults()
-  calculate()
-}
-
-function setStatus(message, type = 'ready') {
-  els.status.className = `status ${type}`
-  els.status.innerHTML = `<span></span>${message}`
+function flagForMarket(name) {
+  const value = String(name || '').toLocaleLowerCase('th-TH')
+  const rules = [
+    [/ลาว|lao/, '🇱🇦'], [/ฮานอย|เวียดนาม/, '🇻🇳'], [/ฮั่งเส็ง|ฮ่องกง/, '🇭🇰'],
+    [/ไต้หวัน/, '🇹🇼'], [/จีน/, '🇨🇳'], [/นิคเคอิ|นิเคอิ|ญี่ปุ่น/, '🇯🇵'],
+    [/เกาหลี/, '🇰🇷'], [/สิงคโปร์/, '🇸🇬'], [/ดาวโจนส์|ดาวโจน/, '🇺🇸'],
+    [/ไทย|ธ\.ก\.ส|ออมสิน/, '🇹🇭'], [/อินเดีย/, '🇮🇳'], [/อังกฤษ/, '🇬🇧'],
+    [/เยอรมัน/, '🇩🇪'], [/รัสเซีย/, '🇷🇺'], [/มาเลย์/, '🇲🇾'], [/อียิปต์/, '🇪🇬'],
+  ]
+  return rules.find(([pattern]) => pattern.test(value))?.[1] || '🌐'
 }
 
 function formatThaiDate(dateString) {
+  if (!dateString) return '—'
   return new Intl.DateTimeFormat('th-TH', {
     day: 'numeric',
     month: 'short',
@@ -262,158 +228,245 @@ function formatThaiDate(dateString) {
   }).format(new Date(`${dateString}T00:00:00+07:00`))
 }
 
-function pairItems(items, valueKey, meta) {
-  return (items || []).map((item, index) => `
-    <div class="pair ${index === 0 ? 'primary' : ''}">
-      <i>${String(index + 1).padStart(2, '0')}</i>
-      <b>${item[valueKey]}</b>
-      <small>${meta(item)}</small>
+function setStatus(message, type = 'ready') {
+  elements.status.className = `status ${type}`
+  elements.status.querySelector('span').textContent = message
+}
+
+function showToast(message = 'คัดลอกแล้ว ✓') {
+  elements.toast.textContent = message
+  elements.toast.classList.add('show')
+  window.clearTimeout(showToast.timer)
+  showToast.timer = window.setTimeout(() => elements.toast.classList.remove('show'), 1500)
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', '')
+    textarea.style.position = 'fixed'
+    textarea.style.opacity = '0'
+    document.body.append(textarea)
+    textarea.select()
+    document.execCommand('copy')
+    textarea.remove()
+  }
+  navigator.vibrate?.(25)
+  showToast()
+}
+
+function openDialog(dialog) {
+  if (!dialog.open) dialog.showModal()
+}
+
+function renderMarketList(query = '') {
+  const normalized = query.trim().normalize('NFC').toLocaleLowerCase('th-TH')
+  const matches = state.markets.filter((market) =>
+    !normalized || market.market_name.normalize('NFC').toLocaleLowerCase('th-TH').includes(normalized),
+  )
+
+  elements.marketList.replaceChildren()
+  if (!matches.length) {
+    const empty = document.createElement('p')
+    empty.className = 'list-empty'
+    empty.textContent = 'ไม่พบตลาดที่ค้นหา'
+    elements.marketList.append(empty)
+    return
+  }
+
+  matches.forEach((market) => {
+    const button = document.createElement('button')
+    button.type = 'button'
+    button.className = market.market_key === state.selectedMarket?.market_key ? 'active' : ''
+    button.dataset.marketKey = market.market_key
+
+    const flag = document.createElement('span')
+    flag.textContent = flagForMarket(market.market_name)
+    const name = document.createElement('b')
+    name.textContent = market.market_name
+    const action = document.createElement('i')
+    action.textContent = market.market_key === state.selectedMarket?.market_key ? 'กำลังใช้ ✓' : 'เลือก ›'
+    button.append(flag, name, action)
+    elements.marketList.append(button)
+  })
+}
+
+function patternStatusLabel(status) {
+  return {
+    ACTIVE: 'กำลังมา',
+    STREAK: 'ไหลต่อเนื่อง',
+    WATCH: 'เฝ้าดู',
+    NORMAL: 'ปกติ',
+  }[status] || status
+}
+
+function renderPattern(pattern) {
+  const current = pattern.current
+  elements.topPattern.textContent = current.top.type
+  elements.topPattern.dataset.pattern = current.top.type
+  elements.doubleWatch.textContent = patternStatusLabel(pattern.doubleWatch)
+  elements.doubleDetail.textContent = current.bottomDouble
+    ? `ล่างเบิ้ล ${current.bottomDoublePair}`
+    : pattern.outputs.doubles.length ? `กัน ${pattern.outputs.doubles.join(' • ')}` : `พบ ${pattern.doubleHits5}/${pattern.recentWindow} งวด`
+  elements.siblingWatch.textContent = patternStatusLabel(pattern.siblingWatch)
+  elements.siblingDetail.textContent = current.siblings.length
+    ? current.siblings.map((item) => `${item.slot} ${item.pair}`).join(' • ')
+    : `พบ ${pattern.siblingHits5}/${pattern.recentWindow} งวด`
+
+  const special = [
+    ...pattern.outputs.ham.map((value) => `หาม ${value}`),
+    ...pattern.outputs.triples.map((value) => `ตอง ${value}`),
+  ]
+  elements.specialPattern.textContent = special.join(' • ') || current.top.label
+  elements.patternFlow.textContent = `Sibling Streak ${pattern.siblingStreak} • Double Streak ${pattern.doubleStreak}`
+}
+
+function renderHistory() {
+  if (!state.current) return
+  elements.historyTitle.textContent = `ประวัติ ${state.current.marketName}`
+  elements.historyList.innerHTML = state.current.allRows.slice(0, 20).map((row, index) => `
+    <div class="history-item ${index === 0 ? 'latest' : ''}">
+      <span>${String(index + 1).padStart(2, '0')}</span>
+      <div><small>${formatThaiDate(row.draw_date)}</small><b>${row.top3}<i>–</i>${row.bottom2}</b></div>
+      <em>${index === 0 ? 'ล่าสุด' : ''}</em>
     </div>
   `).join('')
 }
 
-function renderResult(marketName, analysis) {
-  current = { marketName, ...analysis }
-  els.marketName.textContent = marketName
-  els.sourceTop.textContent = analysis.source.top3
-  els.sourceBottom.textContent = analysis.source.bottom2
+function renderResult(analysis) {
+  elements.sourceTop.textContent = analysis.source.top3
+  elements.sourceBottom.textContent = analysis.source.bottom2
+  elements.fRule.textContent = analysis.isTriple ? 'ตอง A+B+C' : '2 ตัวบน'
+  elements.fDigit.textContent = analysis.f
+  elements.gDigit.textContent = analysis.g
+  elements.hDigit.textContent = analysis.h
+  elements.rudMain.textContent = analysis.rud[0]
+  elements.rudSub.textContent = analysis.rud[1]
+  elements.drawDate.textContent = formatThaiDate(analysis.source.draw_date)
 
-  els.fgDigits.innerHTML = `
-    <div class="rud-item main"><i aria-hidden="true"></i><b>${analysis.fg.join(' • ')}</b><small>⚡ F • G${analysis.isTriple ? ' • กฎตอง' : ''}</small></div>
-  `
-
-  const mainSet = analysis.coreSet || analysis.win6
-  els.win6.innerHTML = mainSet.map((digit) => `
-    <span class="digit ${analysis.base.includes(digit) ? 'locked' : ''}">${digit}</span>
+  elements.win6.innerHTML = analysis.win6.map((digit, index) => `
+    <span class="win-digit ${index < 2 ? 'axis' : ''} ${index % 2 ? 'ruby' : 'jade'}"><b>${digit}</b></span>
   `).join('')
-  els.seventh.textContent = `ฐาน FG + เงา: ${analysis.base.join(' • ')}`
+  elements.reserve.textContent = analysis.reserve ?? '—'
+  elements.modGroups.innerHTML = analysis.mod10Groups.map((group) => `
+    <span>${group.join(' + ')} ≡ 0</span>
+  `).join('')
+  elements.pin2.innerHTML = analysis.pin2.map((item) => `<b>${item.pair}</b>`).join('')
+  elements.pin3.innerHTML = analysis.pin3.map((item) => `<b>${item.triple}</b>`).join('')
 
-  els.matchCount.textContent = `คู่ ${analysis.matchedPairs.join(' • ')}`
-  els.matchPreview.textContent = `${analysis.firstMatch.top3}-${analysis.firstMatch.bottom2} • ค้น ${analysis.searchPairs.join(' / ')}`
-  els.secondary.innerHTML = analysis.shadow.length
-    ? analysis.shadow.map((digit) => `<b>${digit}</b>`).join('')
-    : '<b>—</b>'
+  renderPattern(analysis.pattern)
+  elements.infoMarket.textContent = analysis.marketName
+  elements.historyUsed.textContent = `ย้อนหลัง ${analysis.historyUsed} งวด`
+  elements.partitionType.textContent = analysis.partitionType === 'PAIR×3' ? 'คู่ MOD10 × 3' : 'ชุด 3 MOD10 × 2'
+  elements.searchMode.textContent = analysis.sourceSearch.mode === 'G+H'
+    ? 'เจอ G+H ภายใน 5 งวด'
+    : 'ไม่เจอ G+H • ใช้ H แล้ว G ชุดแรก'
+  elements.candidatePool.textContent = analysis.candidatePool.join(' • ')
+  elements.fillPair.textContent = analysis.fillPair
+    ? `${analysis.fillPair.pair} จาก ${analysis.fillPair.row.top3}-${analysis.fillPair.row.bottom2}`
+    : 'ไม่ต้องเติม'
 
-  els.pin2.innerHTML = pairItems(
-    analysis.pin2,
-    'pair',
-    (item) => `ร่วม ${item.formulaHits} งวด • ${item.occurrences} ครั้ง`,
-  )
-
-  els.pin3.innerHTML = pairItems(
-    analysis.pin3,
-    'triple',
-    (item) => `ร่วม ${item.formulaHits} งวด`,
-  )
-
-  els.pin3Extra.innerHTML = pairItems(
-    analysis.pin3Extra,
-    'triple',
-    (item) => `เสริม • ร่วม ${item.formulaHits} งวด`,
-  )
-
-  els.doublePattern.textContent = `🔄 เบิ้ล ${analysis.patterns.doubles.length ? analysis.patterns.doubles.join(' • ') : 'ไม่มี'}`
-  els.triplePattern.textContent = `👑 ตอง ${analysis.patterns.triples.length ? analysis.patterns.triples.join(' • ') : 'ไม่มี'}`
-  els.siblings.innerHTML = analysis.patterns.siblings.length
-    ? analysis.patterns.siblings.map((pair) => `<b>${pair}</b>`).join('')
-    : '<b>ไม่มี</b>'
-
-  els.empty.classList.add('hidden')
-  els.result.classList.remove('hidden')
-  els.result.classList.remove('result-reveal')
-  void els.result.offsetWidth
-  els.result.classList.add('result-reveal')
-  setPickerExpanded(false)
+  elements.marketButtonName.textContent = analysis.marketName
+  elements.marketFlag.textContent = flagForMarket(analysis.marketName)
+  elements.result.classList.remove('hidden')
+  elements.result.classList.remove('reveal')
+  void elements.result.offsetWidth
+  elements.result.classList.add('reveal')
+  renderHistory()
 }
 
-async function calculate() {
-  const marketKey = els.market.value
-  if (!marketKey) return
-  const selected = markets.find((item) => item.market_key === marketKey)
-  els.market.disabled = true
-  els.refresh.disabled = true
-  setStatus('กำลังหา FG เงา และคู่ย้อนหลัง...', 'loading')
+async function runAnalysis(marketKey) {
+  if (state.loading) return
+  const market = state.markets.find((item) => item.market_key === marketKey)
+  if (!market) return
+
+  state.loading = true
+  state.selectedMarket = market
+  state.current = null
+  elements.result.classList.add('hidden')
+  elements.marketButtonName.textContent = market.market_name
+  elements.marketFlag.textContent = flagForMarket(market.market_name)
+  setStatus('กำลังคำนวณ F/G/H และค้น Candidate Pool...', 'loading')
 
   try {
-    const source = await loadLatestResult(marketKey)
-    const analysis = analyzePercentCore(source)
-    renderResult(selected?.market_name || marketKey, analysis)
-    setStatus(`พร้อม • ผลล่าสุด ${formatThaiDate(source.draw_date)} • เจอคู่ ${analysis.matchedPairs.join('/')} ที่ ${analysis.firstMatch.top3}-${analysis.firstMatch.bottom2}`, 'ready')
+    const data = await loadMarketData(marketKey)
+    const core = analyzeWin6Xgen(data)
+    const pattern = analyzeSyntraXPattern(core.source, core.history, core.rud)
+    state.current = { marketName: market.market_name, allRows: data.allRows, ...core, pattern }
+    localStorage.setItem('xgen-market', marketKey)
+    renderResult(state.current)
+    setStatus(`พร้อม • WIN6XGEN ${core.partitionType} • SyntraX ${pattern.current.top.type}`, 'ready')
   } catch (error) {
     console.error(error)
-    setStatus(error.message || 'โหลดข้อมูลไม่สำเร็จ', 'error')
+    setStatus(`${market.market_name} • ${error.message || 'คำนวณไม่สำเร็จ'}`, 'error')
   } finally {
-    els.market.disabled = false
-    els.refresh.disabled = false
+    state.loading = false
   }
 }
 
 async function initialize() {
   try {
-    markets = await loadMarkets()
-    if (!markets.length) throw new Error('ไม่พบตลาดที่เปิดอ่านได้')
+    state.markets = await loadMarkets()
+    if (!state.markets.length) throw new Error('ไม่พบตลาดที่พร้อมใช้งาน')
+    renderMarketList()
 
-    const placeholder = document.createElement('option')
-    placeholder.value = ''
-    placeholder.textContent = 'เลือกตลาด...'
-    const options = markets.map((item) => {
-      const option = document.createElement('option')
-      option.value = item.market_key
-      option.textContent = item.market_name
-      return option
-    })
-
-    els.market.replaceChildren(placeholder, ...options)
-    els.marketTotals.forEach((element) => { element.textContent = markets.length })
-    const preferred = markets.find((item) => item.market_name === 'ลาวพัฒนา') || markets[0]
-    if (preferred) els.market.value = preferred.market_key
-    els.marketSearch.disabled = false
-    els.market.disabled = false
-    setStatus(`พร้อมใช้งาน • ${markets.length} ตลาด • FG SHADOW FIRST MATCH`, 'ready')
-    if (preferred) await calculate()
+    const saved = localStorage.getItem('xgen-market')
+    const preferred = state.markets.find((market) => market.market_key === saved)
+      || state.markets.find((market) => market.market_name === 'ลาวพัฒนา')
+      || state.markets[0]
+    await runAnalysis(preferred.market_key)
   } catch (error) {
     console.error(error)
-    els.market.innerHTML = '<option>เชื่อมต่อข้อมูลไม่สำเร็จ</option>'
     setStatus(error.message || 'เชื่อมต่อข้อมูลไม่สำเร็จ', 'error')
   }
 }
 
-els.market.addEventListener('change', calculate)
-els.refresh.addEventListener('click', calculate)
-els.marketToggle.addEventListener('click', () => {
-  setPickerExpanded(els.marketToggle.getAttribute('aria-expanded') !== 'true')
-})
-els.marketSearch.addEventListener('input', (event) => renderSearchResults(event.target.value))
-els.marketSearch.addEventListener('keydown', (event) => {
-  if (event.key === 'Enter' && matchedMarkets[0]) {
-    event.preventDefault()
-    selectSearchedMarket(matchedMarkets[0].market_key)
-  }
-  if (event.key === 'Escape') closeSearchResults()
-})
-els.searchResults.addEventListener('click', (event) => {
+function openMarketDialog() {
+  renderMarketList(elements.marketSearch.value)
+  openDialog(elements.marketDialog)
+  window.setTimeout(() => elements.marketSearch.focus(), 120)
+}
+
+elements.marketButton.addEventListener('click', openMarketDialog)
+elements.menuButton.addEventListener('click', openMarketDialog)
+elements.marketSearch.addEventListener('input', (event) => renderMarketList(event.target.value))
+elements.marketList.addEventListener('click', async (event) => {
   const button = event.target.closest('[data-market-key]')
-  if (button) selectSearchedMarket(button.dataset.marketKey)
+  if (!button) return
+  elements.marketDialog.close()
+  elements.marketSearch.value = ''
+  await runAnalysis(button.dataset.marketKey)
 })
-els.clearSearch.addEventListener('click', () => {
-  els.marketSearch.value = ''
-  els.marketSearch.focus()
-  renderSearchResults('')
+
+elements.historyButton.addEventListener('click', () => {
+  if (!state.current) return
+  renderHistory()
+  openDialog(elements.historyDialog)
 })
-document.addEventListener('click', (event) => {
-  if (!event.target.closest('.control-card')) closeSearchResults()
+elements.dateButton.addEventListener('click', () => elements.historyButton.click())
+
+document.querySelectorAll('[data-close]').forEach((button) => {
+  button.addEventListener('click', () => document.querySelector(`#${button.dataset.close}`).close())
 })
-els.copy.addEventListener('click', async () => {
-  if (!current) return
-  const text = formatCopyText(current)
-  try {
-    await navigator.clipboard.writeText(text)
-    els.copy.textContent = 'คัดลอกแล้ว ✓'
-    navigator.vibrate?.(25)
-    window.setTimeout(() => { els.copy.textContent = 'คัดลอกชุด' }, 1600)
-  } catch {
-    window.prompt('คัดลอกข้อความนี้', text)
-  }
+document.querySelectorAll('.sheet-dialog').forEach((dialog) => {
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) dialog.close()
+  })
 })
+
+elements.copyActions.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-copy]')
+  if (button && state.current) copyText(formatCopySection(state.current, button.dataset.copy))
+})
+elements.copyAll.addEventListener('click', () => state.current && copyText(formatCopyText(state.current)))
+
+document.querySelector('#navHome').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
+document.querySelector('#navMarket').addEventListener('click', openMarketDialog)
+document.querySelector('#navAnalyze').addEventListener('click', () => elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+document.querySelector('#navCopy').addEventListener('click', () => state.current && copyText(formatCopyText(state.current)))
+document.querySelector('#navRefresh').addEventListener('click', () => state.selectedMarket && runAnalysis(state.selectedMarket.market_key))
 
 initialize()

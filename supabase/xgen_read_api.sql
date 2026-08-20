@@ -1,5 +1,5 @@
--- Xgen public read API for six-digit-thai-lao.
--- The browser receives only active market names and at most 30 recent results.
+-- WIN6XGEN read-only Data API for Supabase six-digit-thai-lao.
+-- The browser can list active markets and read at most 30 newest results.
 
 create schema if not exists xgen_private;
 revoke all on schema xgen_private from public;
@@ -28,7 +28,7 @@ $$;
 
 create or replace function xgen_private.recent_results(
   p_market_key text,
-  p_limit integer default 4
+  p_limit integer default 30
 )
 returns table (
   draw_date date,
@@ -47,7 +47,7 @@ as $$
     and m.market_key = p_market_key
     and p_market_key ~ '^market_[0-9]{3}$'
   order by r.draw_date desc, r.created_at desc
-  limit least(greatest(coalesce(p_limit, 4), 1), 30);
+  limit least(greatest(coalesce(p_limit, 30), 1), 30);
 $$;
 
 revoke all on function xgen_private.list_markets() from public;
@@ -70,7 +70,7 @@ $$;
 
 create or replace function public.xgen_recent_results(
   p_market_key text,
-  p_limit integer default 4
+  p_limit integer default 30
 )
 returns table (
   draw_date date,
@@ -91,6 +91,6 @@ grant execute on function public.xgen_list_markets() to anon, authenticated;
 grant execute on function public.xgen_recent_results(text, integer) to anon, authenticated;
 
 comment on function public.xgen_list_markets() is
-  'Read-only market list for Xgen. No result mutation capability.';
+  'WIN6XGEN read-only market list.';
 comment on function public.xgen_recent_results(text, integer) is
-  'Read-only Xgen history endpoint capped at 30 rows per active market.';
+  'WIN6XGEN read-only history endpoint capped at 30 rows.';

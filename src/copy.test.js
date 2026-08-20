@@ -1,44 +1,38 @@
 import { describe, expect, it } from 'vitest'
-import { analyzePercentCore } from './formula.js'
-import { formatCopyText } from './copy.js'
+import { formatCopySection, formatCopyText } from './copy.js'
+import { analyzeSyntraXPattern } from './syntrax-pattern.js'
+import { analyzeWin6Xgen } from './win6xgen.js'
 
-describe('FG SHADOW FIRST MATCH copy', () => {
-  it('แสดง FG เงา คู่ค้น ชุดแรก และชุดหลักครบ', () => {
-    const result = {
-      marketName: 'ดาวโจนส์สตาร์',
-      ...analyzePercentCore({
-        top3: '704',
-        bottom2: '76',
-        history: [
-          { draw_date: '2026-08-17', top3: '748', bottom2: '12' },
-          { draw_date: '2026-08-14', top3: '292', bottom2: '85' },
-          { draw_date: '2026-08-12', top3: '863', bottom2: '89' },
-        ],
-      }),
-    }
+function example() {
+  const core = analyzeWin6Xgen({
+    draw_date: '2026-08-20',
+    top3: '240',
+    bottom2: '56',
+    history: [{ draw_date: '2026-08-19', top3: '195', bottom2: '38' }],
+  })
+  return {
+    marketName: 'ตลาดทดสอบ',
+    ...core,
+    pattern: analyzeSyntraXPattern(core.source, core.history, core.rud),
+  }
+}
 
-    const text = formatCopyText(result)
-    expect(text).toContain('📊 ผลล่าสุด 704-76')
-    expect(text).toContain('⚡ FG 4 • 3')
-    expect(text).toContain('🌑 เงา FG 9 • 8')
-    expect(text).toContain('🔎 คู่ค้น 48 • 43 • 39')
-    expect(text).toContain('📚 ชุดแรก 748-12 • เจอคู่ 48')
-    expect(text).toContain('✨ ชุดหลัก 4 • 3 • 9 • 8 • 7 • 1 • 2')
-    expect(text).not.toContain('WIN6')
+describe('WIN6XGEN copy', () => {
+  it('คัดลอกเฉพาะผลลูกค้าแบบกระชับ', () => {
+    const text = formatCopyText(example())
+    expect(text).toContain('🍀 WIN6XGEN | ตลาดทดสอบ')
+    expect(text).toContain('240-56')
+    expect(text).toContain('⚡ รูด 4 • 1')
+    expect(text).toContain('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8')
+    expect(text).toContain('🎯 เจาะ 2')
+    expect(text).toContain('🎯 เจาะ 3')
+    expect(text).toContain('🧬 SyntraX')
+    expect(text).not.toContain('Candidate Pool')
   })
 
-  it('ระบุเมื่อใช้กฎเลขตอง', () => {
-    const result = {
-      marketName: 'ตลาดทดสอบ',
-      ...analyzePercentCore({
-        top3: '222',
-        bottom2: '45',
-        history: [
-          { draw_date: '2026-08-17', top3: '614', bottom2: '93' },
-        ],
-      }),
-    }
-
-    expect(formatCopyText(result)).toContain('⚡ FG 6 • 9 • กฎตอง')
+  it('คัดลอกแยกแต่ละส่วนได้', () => {
+    const result = example()
+    expect(formatCopySection(result, 'rud')).toBe('⚡ รูด 4 • 1')
+    expect(formatCopySection(result, 'win6')).toBe('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8')
   })
 })
