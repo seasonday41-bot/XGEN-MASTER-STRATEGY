@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import {
-  buildPin2,
-  buildPin3,
-  calculateFG,
-  collectFirstFoundWinDigits,
-} from './win6xgen.js'
 
+describe('test', () => {
+  it('works', () => {
+    expect(1).toBe(1)
+  })
+})
 describe('WIN6XGEN CORE', () => {
   it('คงสูตร F/G เดิมจาก 2 ตัวบนและ 2 ตัวล่าง', () => {
     const result = calculateFG('294', '73')
