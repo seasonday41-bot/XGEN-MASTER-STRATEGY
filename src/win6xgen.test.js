@@ -32,7 +32,7 @@ describe('WIN6XGEN CORE', () => {
     expect(shadowDigit(digit)).toBe(shadow)
   })
 
-  it('ให้ FG มาก่อน F แม้ FG จะอยู่ที่งวด 6', () => {
+  it('จบลำดับ FG → F → G ใน 5 งวดก่อนเปิดงวดที่ 6', () => {
     const history = [
       { top3: '100', bottom2: '22' },
       filler,
@@ -43,8 +43,8 @@ describe('WIN6XGEN CORE', () => {
     ]
 
     const result = searchCandidateSources(history, 1, 4)
-    expect(result).toMatchObject({ mode: 'F+G', searchWindowUsed: 6 })
-    expect(result.match.rowIndex).toBe(5)
+    expect(result).toMatchObject({ mode: 'F', searchWindowUsed: 5 })
+    expect(result.match.rowIndex).toBe(0)
   })
 
   it('ถ้าไม่พบ FG จึงใช้ F', () => {
@@ -73,7 +73,7 @@ describe('WIN6XGEN CORE', () => {
     expect(result.match.rowIndex).toBe(2)
   })
 
-  it.each([5, 6, 7, 8])('บันทึกหน้าต่างค้นหาที่พบ FG ในงวด %i', (window) => {
+  it.each([5, 6, 7, 8])('เมื่อหน้าต่างก่อนหน้าไม่พบ จึงเปิดงวด %i เพื่อหา FG', (window) => {
     const history = Array.from({ length: window }, () => filler)
     history[window - 1] = { top3: '140', bottom2: '22' }
 
@@ -98,10 +98,12 @@ describe('WIN6XGEN CORE', () => {
       { top3: '444', bottom2: '44' },
       { top3: '555', bottom2: '55' },
       { top3: '666', bottom2: '66' },
+      { top3: '999', bottom2: '99' },
     ], { f: 1, g: 2 }, { match: { rowIndex: 0 } })
 
     expect(result.baseDigits).toEqual([1, 2])
     expect(result.candidatePool).toEqual([1, 2, 3, 4, 5, 6])
+    expect(result.candidatePool).not.toContain(9)
     expect(result.collectionWindowUsed).toBe(5)
     expect(result.usedShadowFill).toBe(false)
   })

@@ -138,8 +138,8 @@ export function searchCandidateSources(history, f, g) {
     { mode: 'G', targets: [g] },
   ]
 
-  for (const strategy of strategies) {
-    for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
+  for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
+    for (const strategy of strategies) {
       const match = firstMatchInWindow(rows, strategy.targets, window)
       if (!match) continue
 
@@ -272,7 +272,7 @@ export function analyzeWin6Xgen(input) {
 
   return {
     engine: 'WIN6XGEN',
-    version: '4.0.0',
+    version: '4.1.0',
     source,
     history,
     historyUsed: Math.min(history.length + 1, HISTORY_LIMIT),
