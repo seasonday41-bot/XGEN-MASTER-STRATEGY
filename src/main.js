@@ -5,7 +5,6 @@ import { analyzeSyntraXPattern } from './syntrax-pattern.js'
 import { loadMarketData, loadMarkets } from './supabase.js'
 import { analyzeWin6Xgen } from './win6xgen.js'
 
-const DRAGON_ASSET = 'https://raw.githubusercontent.com/seasonday41-bot/SyntraX/main/assets/dragon.svg'
 const app = document.querySelector('#app')
 
 app.innerHTML = `
@@ -15,7 +14,7 @@ app.innerHTML = `
     <header class="temple-hero">
       <button id="menuButton" class="round-menu" type="button" aria-label="เลือกตลาด"><span></span><span></span><span></span></button>
       <div class="fortune-charm jade" aria-hidden="true"><b>福</b><i></i></div>
-      <img class="hero-dragon" src="${DRAGON_ASSET}" alt="" aria-hidden="true">
+      <div class="hero-scenery" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
       <div class="hero-brand">
         <div class="crown-mark" aria-hidden="true"><i></i><b>◆</b><i></i></div>
         <h1>XGEN</h1>
@@ -46,21 +45,24 @@ app.innerHTML = `
 
     <div id="status" class="status loading" role="status"><i></i><span>กำลังเชื่อมต่อ six-digit-thai-lao</span></div>
 
+    <section id="analysisIssue" class="analysis-issue hidden" aria-labelledby="issueTitle">
+      <div class="issue-glow" aria-hidden="true">◇</div>
+      <header>
+        <small>XGEN NOTICE</small>
+        <h2 id="issueTitle">ยังไม่มีชุดสำหรับงวดนี้</h2>
+        <p id="issueSummary">ข้อมูลอัปเดตแล้ว กรุณาลองใหม่ในภายหลัง</p>
+      </header>
+      <button id="issueHistoryButton" class="issue-history-button" type="button">ดูข้อมูลย้อนหลังทั้งหมด</button>
+    </section>
+
     <section id="result" class="result hidden" aria-live="polite">
       <article class="latest-palace ornate-card">
         <div class="ornate-corner tl"></div><div class="ornate-corner tr"></div>
         <div class="ornate-corner bl"></div><div class="ornate-corner br"></div>
-        <img class="card-dragon left" src="${DRAGON_ASSET}" alt="" aria-hidden="true">
-        <img class="card-dragon right" src="${DRAGON_ASSET}" alt="" aria-hidden="true">
         <div class="section-banner"><span>ผลล่าสุด</span></div>
         <div class="latest-number"><b id="sourceTop">---</b><i>–</i><b id="sourceBottom" class="bottom">--</b></div>
 
-        <div class="fgh-stage">
-          <div class="formula-gem f-gem"><small>F <span id="fRule">2 ตัวบน</span></small><b id="fDigit">—</b><em>mod 10</em></div>
-          <div class="lotus-seal" aria-hidden="true"><span>🪷</span></div>
-          <div class="formula-gem g-gem"><small>G <span>2 ตัวล่าง</span></small><b id="gDigit">—</b><em>mod 10</em></div>
-          <div class="formula-gem h-gem"><small>H <span>F + G</span></small><b id="hDigit">—</b><em>mod 10</em></div>
-        </div>
+        <div class="result-divider" aria-hidden="true"><i></i><span>✦</span><i></i></div>
 
         <div class="rud-banner">
           <span>รูดหลัก</span>
@@ -73,7 +75,6 @@ app.innerHTML = `
           <div class="mini-banner">WIN 6 ตัว</div>
           <div id="win6" class="win-digits"></div>
           <div class="reserve-line"><span>สำรอง</span><b id="reserve">—</b></div>
-          <div id="modGroups" class="mod-groups"></div>
         </article>
 
         <div class="drill-stack">
@@ -98,7 +99,7 @@ app.innerHTML = `
           <div><small>พี่น้อง</small><b id="siblingWatch">NORMAL</b><span id="siblingDetail">—</span></div>
           <div><small>หาม / ตอง</small><b id="specialPattern">ไม่มี</b><span id="patternFlow">—</span></div>
         </div>
-        <p>SyntraX อ่าน Pattern แยกจาก WIN6 CORE และไม่เปลี่ยน WIN6 หรือรูด F/G</p>
+        <p>สัญญาณเสริมจากข้อมูลย้อนหลัง เพื่อประกอบการตัดสินใจในแต่ละงวด</p>
       </article>
 
       <article class="info-card ornate-card">
@@ -106,16 +107,8 @@ app.innerHTML = `
         <div class="info-grid">
           <div><span class="info-icon">◉</span><small>ประเภท</small><b id="infoMarket">—</b></div>
           <div><span class="info-icon">▣</span><small>อ้างอิงข้อมูล</small><b id="historyUsed">—</b></div>
-          <div><span class="info-icon">♢</span><small>โครงสร้าง</small><b id="partitionType">—</b></div>
+          <div><span class="info-icon">♢</span><small>สถานะระบบ</small><b id="systemStatus">พร้อมใช้งาน</b></div>
         </div>
-        <details class="proof-details">
-          <summary>ดูหลักฐานการคำนวณ WIN6XGEN</summary>
-          <div class="proof-grid">
-            <p><span>ค้นย้อนหลัง</span><b id="searchMode">—</b></p>
-            <p><span>Candidate Pool</span><b id="candidatePool">—</b></p>
-            <p><span>คู่เติม</span><b id="fillPair">—</b></p>
-          </div>
-        </details>
         <p class="disclaimer">* เป็นแนวทางจากโครงสร้างตัวเลขและข้อมูลย้อนหลัง ไม่การันตีผล 100%</p>
       </article>
 
@@ -162,18 +155,17 @@ const elements = {
   drawDate: document.querySelector('#drawDate'),
   historyButton: document.querySelector('#historyButton'),
   status: document.querySelector('#status'),
+  analysisIssue: document.querySelector('#analysisIssue'),
+  issueTitle: document.querySelector('#issueTitle'),
+  issueSummary: document.querySelector('#issueSummary'),
+  issueHistoryButton: document.querySelector('#issueHistoryButton'),
   result: document.querySelector('#result'),
   sourceTop: document.querySelector('#sourceTop'),
   sourceBottom: document.querySelector('#sourceBottom'),
-  fRule: document.querySelector('#fRule'),
-  fDigit: document.querySelector('#fDigit'),
-  gDigit: document.querySelector('#gDigit'),
-  hDigit: document.querySelector('#hDigit'),
   rudMain: document.querySelector('#rudMain'),
   rudSub: document.querySelector('#rudSub'),
   win6: document.querySelector('#win6'),
   reserve: document.querySelector('#reserve'),
-  modGroups: document.querySelector('#modGroups'),
   pin2: document.querySelector('#pin2'),
   pin3: document.querySelector('#pin3'),
   topPattern: document.querySelector('#topPattern'),
@@ -185,10 +177,7 @@ const elements = {
   patternFlow: document.querySelector('#patternFlow'),
   infoMarket: document.querySelector('#infoMarket'),
   historyUsed: document.querySelector('#historyUsed'),
-  partitionType: document.querySelector('#partitionType'),
-  searchMode: document.querySelector('#searchMode'),
-  candidatePool: document.querySelector('#candidatePool'),
-  fillPair: document.querySelector('#fillPair'),
+  systemStatus: document.querySelector('#systemStatus'),
   copyActions: document.querySelector('.copy-actions'),
   copyAll: document.querySelector('#copyAll'),
   marketDialog: document.querySelector('#marketDialog'),
@@ -336,13 +325,25 @@ function renderHistory() {
   `).join('')
 }
 
+function renderIssue(error, market, data) {
+  const details = error.details || {}
+  const source = details.source || data
+
+  elements.issueTitle.textContent = `ยังไม่มีชุดสำหรับ ${market.market_name}`
+  elements.issueSummary.textContent = 'ตรวจข้อมูลล่าสุดครบแล้ว กรุณาลองใหม่อีกครั้งในภายหลัง'
+  elements.drawDate.textContent = formatThaiDate(source?.draw_date)
+
+  elements.marketButtonName.textContent = market.market_name
+  elements.marketFlag.textContent = flagForMarket(market.market_name)
+  elements.analysisIssue.classList.remove('hidden', 'reveal')
+  void elements.analysisIssue.offsetWidth
+  elements.analysisIssue.classList.add('reveal')
+  renderHistory()
+}
+
 function renderResult(analysis) {
   elements.sourceTop.textContent = analysis.source.top3
   elements.sourceBottom.textContent = analysis.source.bottom2
-  elements.fRule.textContent = analysis.isTriple ? 'ตอง A+B+C' : '2 ตัวบน'
-  elements.fDigit.textContent = analysis.f
-  elements.gDigit.textContent = analysis.g
-  elements.hDigit.textContent = analysis.h
   elements.rudMain.textContent = analysis.rud[0]
   elements.rudSub.textContent = analysis.rud[1]
   elements.drawDate.textContent = formatThaiDate(analysis.source.draw_date)
@@ -351,26 +352,17 @@ function renderResult(analysis) {
     <span class="win-digit ${index < 2 ? 'axis' : ''} ${index % 2 ? 'ruby' : 'jade'}"><b>${digit}</b></span>
   `).join('')
   elements.reserve.textContent = analysis.reserve ?? '—'
-  elements.modGroups.innerHTML = analysis.mod10Groups.map((group) => `
-    <span>${group.join(' + ')} ≡ 0</span>
-  `).join('')
   elements.pin2.innerHTML = analysis.pin2.map((item) => `<b>${item.pair}</b>`).join('')
   elements.pin3.innerHTML = analysis.pin3.map((item) => `<b>${item.triple}</b>`).join('')
 
   renderPattern(analysis.pattern)
   elements.infoMarket.textContent = analysis.marketName
-  elements.historyUsed.textContent = `ย้อนหลัง ${analysis.historyUsed} งวด`
-  elements.partitionType.textContent = analysis.partitionType === 'PAIR×3' ? 'คู่ MOD10 × 3' : 'ชุด 3 MOD10 × 2'
-  elements.searchMode.textContent = analysis.sourceSearch.mode === 'G+H'
-    ? 'เจอ G+H ภายใน 5 งวด'
-    : 'ไม่เจอ G+H • ใช้ H แล้ว G ชุดแรก'
-  elements.candidatePool.textContent = analysis.candidatePool.join(' • ')
-  elements.fillPair.textContent = analysis.fillPair
-    ? `${analysis.fillPair.pair} จาก ${analysis.fillPair.row.top3}-${analysis.fillPair.row.bottom2}`
-    : 'ไม่ต้องเติม'
+  elements.historyUsed.textContent = `อ้างอิง ${analysis.historyUsed} งวด`
+  elements.systemStatus.textContent = 'พร้อมใช้งาน'
 
   elements.marketButtonName.textContent = analysis.marketName
   elements.marketFlag.textContent = flagForMarket(analysis.marketName)
+  elements.analysisIssue.classList.add('hidden')
   elements.result.classList.remove('hidden')
   elements.result.classList.remove('reveal')
   void elements.result.offsetWidth
@@ -387,21 +379,35 @@ async function runAnalysis(marketKey) {
   state.selectedMarket = market
   state.current = null
   elements.result.classList.add('hidden')
+  elements.analysisIssue.classList.add('hidden')
   elements.marketButtonName.textContent = market.market_name
   elements.marketFlag.textContent = flagForMarket(market.market_name)
-  setStatus('กำลังคำนวณ F/G/H และค้น Candidate Pool...', 'loading')
+  setStatus('กำลังประมวลผลข้อมูลล่าสุด...', 'loading')
 
+  let data
   try {
-    const data = await loadMarketData(marketKey)
+    data = await loadMarketData(marketKey)
     const core = analyzeWin6Xgen(data)
     const pattern = analyzeSyntraXPattern(core.source, core.history, core.rud)
     state.current = { marketName: market.market_name, allRows: data.allRows, ...core, pattern }
     localStorage.setItem('xgen-market', marketKey)
     renderResult(state.current)
-    setStatus(`พร้อม • WIN6XGEN ${core.partitionType} • SyntraX ${pattern.current.top.type}`, 'ready')
+    setStatus(`พร้อม • ${market.market_name} • อัปเดต ${formatThaiDate(core.source.draw_date)}`, 'ready')
   } catch (error) {
-    console.error(error)
-    setStatus(`${market.market_name} • ${error.message || 'คำนวณไม่สำเร็จ'}`, 'error')
+    if (data && error.details) {
+      console.warn(error)
+      state.current = {
+        marketName: market.market_name,
+        allRows: data.allRows,
+        failure: true,
+      }
+      localStorage.setItem('xgen-market', marketKey)
+      renderIssue(error, market, data)
+      setStatus(`อัปเดตแล้ว • ยังไม่มีชุดสำหรับ ${market.market_name}`, 'blocked')
+    } else {
+      console.error(error)
+      setStatus(`${market.market_name} • ${error.message || 'คำนวณไม่สำเร็จ'}`, 'error')
+    }
   } finally {
     state.loading = false
   }
@@ -446,6 +452,7 @@ elements.historyButton.addEventListener('click', () => {
   renderHistory()
   openDialog(elements.historyDialog)
 })
+elements.issueHistoryButton.addEventListener('click', () => elements.historyButton.click())
 elements.dateButton.addEventListener('click', () => elements.historyButton.click())
 
 document.querySelectorAll('[data-close]').forEach((button) => {
@@ -459,14 +466,17 @@ document.querySelectorAll('.sheet-dialog').forEach((dialog) => {
 
 elements.copyActions.addEventListener('click', (event) => {
   const button = event.target.closest('[data-copy]')
-  if (button && state.current) copyText(formatCopySection(state.current, button.dataset.copy))
+  if (button && state.current?.win6) copyText(formatCopySection(state.current, button.dataset.copy))
 })
-elements.copyAll.addEventListener('click', () => state.current && copyText(formatCopyText(state.current)))
+elements.copyAll.addEventListener('click', () => state.current?.win6 && copyText(formatCopyText(state.current)))
 
 document.querySelector('#navHome').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
 document.querySelector('#navMarket').addEventListener('click', openMarketDialog)
-document.querySelector('#navAnalyze').addEventListener('click', () => elements.result.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-document.querySelector('#navCopy').addEventListener('click', () => state.current && copyText(formatCopyText(state.current)))
+document.querySelector('#navAnalyze').addEventListener('click', () => {
+  const target = elements.analysisIssue.classList.contains('hidden') ? elements.result : elements.analysisIssue
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+})
+document.querySelector('#navCopy').addEventListener('click', () => state.current?.win6 && copyText(formatCopyText(state.current)))
 document.querySelector('#navRefresh').addEventListener('click', () => state.selectedMarket && runAnalysis(state.selectedMarket.market_key))
 
 initialize()
