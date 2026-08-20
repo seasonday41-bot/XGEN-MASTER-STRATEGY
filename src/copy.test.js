@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { formatCopySection, formatCopyText } from './copy.js'
 import { analyzeSyntraXPattern } from './syntrax-pattern.js'
-import { analyzeWin6Xgen } from './win6xgen.js'
+import { analyzeWin6Xgen, buildPin2, buildPin3 } from './win6xgen.js'
 
 function example() {
   const core = analyzeWin6Xgen({
@@ -33,14 +33,15 @@ describe('WIN6XGEN copy', () => {
   })
 
   it('จัด Copy แบบลูกค้าพร้อมเลขเบิ้ลและคู่พี่น้องของโครงสร้าง AAB', () => {
+    const pinDigits = [9, 4, 3, 7, 5, 2, 0]
     const result = {
       marketName: 'ฮานอยพิเศษ',
       source: { top3: '663', bottom2: '13' },
       rud: [9, 4],
       win6: [9, 4, 3, 7, 5, 2],
       reserve: 0,
-      pin2: ['94', '93', '97', '45', '42'].map((pair) => ({ pair })),
-      pin3: ['943', '975', '472', '932', '435'].map((triple) => ({ triple })),
+      pin2: buildPin2(pinDigits),
+      pin3: buildPin3(pinDigits),
       pattern: analyzeSyntraXPattern({ top3: '663', bottom2: '13' }, [], [9, 4]),
     }
 
@@ -55,8 +56,8 @@ describe('WIN6XGEN copy', () => {
       '🎲 เบิ้ล 66',
       '👥 พี่น้อง 69 • 34',
       '',
-      '🎯 เจาะ 2 94 • 93 • 97 • 45 • 42',
-      '🎯 เจาะ 3 943 • 975 • 472 • 932 • 435',
+      '🎯 เจาะ 2 94 • 93 • 97 • 45 • 20',
+      '🎯 เจาะ 3 943 • 975 • 472 • 932 • 940',
     ].join('\n'))
   })
 

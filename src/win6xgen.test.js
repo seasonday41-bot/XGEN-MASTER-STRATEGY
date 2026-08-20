@@ -1,17 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   analyzeWin6Xgen,
-  buildCandidatePool,
   buildPin2,
   buildPin3,
   calculateFGH,
-  findFirstValidWin6,
-  findHistoryZeroPairs,
-  partitionWin6,
+  collectWinDigits,
   searchCandidateSources,
-  searchWin6ByF,
-  selectWin6,
 } from './win6xgen.js'
+
+const filler = { top3: '222', bottom2: '35' }
 
 describe('WIN6XGEN CORE', () => {
   it('คำนวณ F/G/H จาก 2 ตัวบนและ 2 ตัวล่าง', () => {
@@ -22,178 +19,169 @@ describe('WIN6XGEN CORE', () => {
     expect(calculateFGH('222', '82')).toMatchObject({ f: 6, g: 0, h: 6, isTriple: true, rud: [6, 0] })
   })
 
-  it('หา G+H เฉพาะ 5 งวดแรก', () => {
+  it('ให้ลำดับ G+H มาก่อน F+G แม้ F+G จะอยู่ในงวดที่ใหม่กว่า', () => {
+    const result = searchCandidateSources([
+      { top3: '140', bottom2: '22' },
+      { top3: '470', bottom2: '22' },
+      filler,
+      filler,
+      filler,
+    ], 1, 4, 7)
+
+    expect(result).toMatchObject({ mode: 'G+H', searchWindowUsed: 5 })
+    expect(result.match.rowIndex).toBe(1)
+  })
+
+  it.each([
+    ['F+G', { top3: '140', bottom2: '22' }],
+    ['H', { top3: '700', bottom2: '22' }],
+    ['G', { top3: '400', bottom2: '22' }],
+    ['F', { top3: '100', bottom2: '22' }],
+  ])('ใช้ fallback %s ตามลำดับที่บันทึกไว้', (mode, matchingRow) => {
+    const result = searchCandidateSources([matchingRow, filler, filler, filler, filler], 1, 4, 7)
+    expect(result.mode).toBe(mode)
+    expect(result.match.rowIndex).toBe(0)
+  })
+
+  it.each([6, 7, 8])('ขยายการหางวดเริ่มต้นไปงวดที่ %i ตามลำดับ', (window) => {
+    const history = Array.from({ length: window }, () => filler)
+    history[window - 1] = { top3: '470', bottom2: '22' }
+
+    const result = searchCandidateSources(history, 1, 4, 7)
+    expect(result).toMatchObject({ mode: 'G+H', searchWindowUsed: window })
+    expect(result.match.rowIndex).toBe(window - 1)
+  })
+
+  it('ไม่ข้ามงวดที่ 8 เพื่อหางวดเริ่มต้น', () => {
+    const history = Array.from({ length: 9 }, () => filler)
+    history[8] = { top3: '470', bottom2: '22' }
+
+    expect(() => searchCandidateSources(history, 1, 4, 7)).toThrowError(
+      expect.objectContaining({ code: 'SOURCE_NOT_FOUND' }),
+    )
+  })
+
+  it('ล็อก F/G/H แล้วเก็บเลขไม่ซ้ำตามลำดับจากงวดที่พบ', () => {
+    const result = collectWinDigits([
+      { top3: '222', bottom2: '33' },
+      { top3: '444', bottom2: '44' },
+      { top3: '555', bottom2: '55' },
+      { top3: '666', bottom2: '66' },
+      { top3: '123', bottom2: '45' },
+    ], { f: 1, g: 2, h: 3 }, { match: { rowIndex: 0 } })
+
+    expect(result.baseDigits).toEqual([1, 2, 3])
+    expect(result.candidatePool).toEqual([1, 2, 3, 4, 5, 6])
+    expect(result.collectionWindowUsed).toBe(5)
+  })
+
+  it('ไม่หยิบเลขจากงวดที่ใหม่กว่างวดเริ่มต้น', () => {
+    const result = collectWinDigits([
+      { top3: '789', bottom2: '00' },
+      { top3: '222', bottom2: '33' },
+      { top3: '444', bottom2: '44' },
+      { top3: '555', bottom2: '55' },
+      { top3: '666', bottom2: '66' },
+      { top3: '123', bottom2: '45' },
+    ], { f: 1, g: 2, h: 3 }, { match: { rowIndex: 1 } })
+
+    expect(result.candidatePool).toEqual([1, 2, 3, 4, 5, 6])
+    expect(result.candidatePool).not.toContain(7)
+  })
+
+  it.each([6, 7, 8])('ถ้า 5 งวดยังไม่ครบ ให้เปิดงวดที่ %i เพียงขั้นถัดไป', (window) => {
     const history = [
-      { top3: '111', bottom2: '20' },
-      { top3: '222', bottom2: '30' },
-      { top3: '333', bottom2: '40' },
-      { top3: '444', bottom2: '50' },
-      { top3: '555', bottom2: '60' },
-      { top3: '195', bottom2: '38' },
+      { top3: '222', bottom2: '33' },
+      { top3: '444', bottom2: '44' },
+      { top3: '555', bottom2: '55' },
+      { top3: '444', bottom2: '55' },
+      { top3: '555', bottom2: '44' },
+      ...Array.from({ length: window - 5 }, () => ({ top3: '444', bottom2: '55' })),
     ]
-    const search = searchCandidateSources(history, 1, 5)
+    history[window - 1] = { top3: '666', bottom2: '66' }
 
-    expect(search.mode).toBe('H→G')
-    expect(search.matches.map((item) => item.kind)).toEqual(['5', '1'])
+    const result = collectWinDigits(history, { f: 1, g: 2, h: 3 }, { match: { rowIndex: 0 } })
+    expect(result.candidatePool).toEqual([1, 2, 3, 4, 5, 6])
+    expect(result.collectionWindowUsed).toBe(window)
   })
 
-  it('ใช้ G+H ชุดแรกเมื่อพบภายใน 5 งวด', () => {
-    const search = searchCandidateSources([
-      { top3: '195', bottom2: '38' },
-      { top3: '519', bottom2: '20' },
-    ], 1, 5)
+  it('หยุดที่งวด 8 และแจ้งเมื่อเลขยังไม่ครบ 6 ตัว', () => {
+    const history = [
+      { top3: '222', bottom2: '33' },
+      ...Array.from({ length: 7 }, () => ({ top3: '444', bottom2: '55' })),
+    ]
 
-    expect(search.mode).toBe('G+H')
-    expect(search.matches[0].rowIndex).toBe(0)
+    expect(() => collectWinDigits(
+      history,
+      { f: 1, g: 2, h: 3 },
+      { match: { rowIndex: 0 } },
+    )).toThrowError(expect.objectContaining({ code: 'INSUFFICIENT_WIN_DIGITS' }))
   })
 
-  it('Candidate Pool ล็อก F/G/H ก่อนและตัดซ้ำแบบคงลำดับ', () => {
-    const fgh = calculateFGH('240', '56')
-    const sourceSearch = searchCandidateSources([{ top3: '195', bottom2: '38' }], 1, 5)
-    expect(buildCandidatePool(fgh, sourceSearch)).toEqual([4, 1, 5, 9, 3, 8])
-  })
-
-  it('รับ WIN6 ที่แบ่งเป็น 3 คู่ MOD10=0', () => {
-    expect(partitionWin6([1, 9, 2, 8, 3, 7])).toEqual({
-      type: 'PAIR×3',
-      groups: [[1, 9], [2, 8], [3, 7]],
-    })
-  })
-
-  it('รับ WIN6 ที่แบ่งเป็น 2 ชุดสามตัว MOD10=0', () => {
-    expect(partitionWin6([4, 1, 5, 9, 3, 8])).toEqual({
-      type: 'TRIPLE×2',
-      groups: [[4, 1, 5], [9, 3, 8]],
-    })
-  })
-
-  it('เลือกชุดแรกตามลำดับ Candidate และต้องมี F/G', () => {
-    const result = findFirstValidWin6([4, 1, 5, 9, 3, 8, 2, 6], [4, 1])
-    expect(result.values).toEqual([4, 1, 5, 9, 3, 8])
-  })
-
-  it('หาคู่เติมย้อนหลังคู่แรกที่ผลบวก MOD10=0', () => {
-    const pairs = findHistoryZeroPairs([
-      { top3: '128', bottom2: '34' },
-      { top3: '379', bottom2: '16' },
-    ])
-    expect(pairs[0].digits).toEqual([2, 8])
-  })
-
-  it('เติมคู่แรกที่ไม่ซ้ำชุดหลักเมื่อ Candidate ขาด 2 ตัว', () => {
-    const result = selectWin6(
-      [1, 9, 4, 6],
-      [{ top3: '228', bottom2: '50' }, { top3: '337', bottom2: '41' }],
-      [1, 9],
-    )
-    expect(result.values).toEqual([1, 9, 4, 6, 2, 8])
-    expect(result.fillPair.digits).toEqual([2, 8])
-    expect(result.selectionMode).toBe('FIRST_HISTORY_MOD10_PAIR')
-  })
-
-  it('ไม่ใช้ fallback ขยายย้อนหลังทั่วไปเมื่อ Candidate มีอย่างน้อย 6 ตัว', () => {
-    expect(() => selectWin6(
-      [0, 1, 2, 3, 4, 5],
-      [{ top3: '688', bottom2: '79' }],
-      [0, 1],
-    )).toThrow('ไม่มี WIN6 ที่ผ่าน MOD10 ตามวิธีที่บันทึกไว้')
-  })
-
-  it('เมื่อขั้นเดิมไม่สำเร็จ ใช้ F ค้นย้อนหลังจนเจองวดแรกที่จัด WIN6 ได้', () => {
-    const result = analyzeWin6Xgen({
-      draw_date: '2026-08-19',
-      top3: '736',
-      bottom2: '49',
-      history: [
-        { draw_date: '2026-08-18', top3: '943', bottom2: '22' },
-        { draw_date: '2026-08-17', top3: '994', bottom2: '80' },
-        { draw_date: '2026-08-16', top3: '782', bottom2: '49' },
-        { draw_date: '2026-08-15', top3: '072', bottom2: '65' },
-        { draw_date: '2026-08-14', top3: '579', bottom2: '85' },
-        { draw_date: '2026-08-13', top3: '192', bottom2: '71' },
-        { draw_date: '2026-08-12', top3: '765', bottom2: '24' },
-        { draw_date: '2026-08-10', top3: '371', bottom2: '24' },
-      ],
-    })
-
-    expect(result.selectionMode).toBe('F_HISTORY_SEARCH')
-    expect(result.win6).toEqual([9, 3, 2, 4, 5, 7])
-    expect(result.mod10Groups).toEqual([[9, 4, 7], [3, 2, 5]])
-    expect(result.reserve).toBe(8)
-    expect(result.fSearch.match).toMatchObject({
-      rowIndex: 4,
-      row: { top3: '579', bottom2: '85' },
-    })
-    expect(result.fSearch.attempts).toHaveLength(3)
-  })
-
-  it('ค้น F โดยข้ามงวดที่ขั้น G+H ใช้ไปแล้ว', () => {
-    const result = searchWin6ByF(
-      [9, 3, 2, 4],
-      [
-        { top3: '943', bottom2: '22' },
-        { top3: '994', bottom2: '80' },
-        { top3: '579', bottom2: '85' },
-      ],
-      9,
-      [9, 3],
-      [0],
-    )
-
-    expect(result.match.rowIndex).toBe(2)
-    expect(result.selected.values).toEqual([9, 3, 2, 4, 5, 7])
-  })
-
-  it('ส่งหลักฐานเมื่อคู่เติมทุกคู่ชน Pool และค้น F แล้วยังไม่สำเร็จ', () => {
-    let captured
-
-    try {
-      analyzeWin6Xgen({
-        draw_date: '2026-08-19',
-        top3: '736',
-        bottom2: '49',
-        history: [
-          { draw_date: '2026-08-18', top3: '943', bottom2: '22' },
-          { draw_date: '2026-08-16', top3: '782', bottom2: '49' },
-          { draw_date: '2026-08-13', top3: '192', bottom2: '71' },
-          { draw_date: '2026-08-12', top3: '765', bottom2: '24' },
-          { draw_date: '2026-08-10', top3: '371', bottom2: '24' },
-        ],
-      })
-    } catch (error) {
-      captured = error
-    }
-
-    expect(captured?.code).toBe('NO_DISJOINT_MOD10_PAIR')
-    expect(captured?.details.initialCandidatePool).toEqual([9, 3, 2, 4])
-    expect(captured?.details.fgh).toMatchObject({ f: 9, g: 3, h: 2 })
-    expect(captured?.details.fSearch.attempts).toHaveLength(2)
-    expect(captured?.details.zeroPairs.map((item) => ({
-      pair: item.pair,
-      blockedBy: item.blockedBy,
-    }))).toEqual([
-      { pair: '82', blockedBy: [2] },
-      { pair: '19', blockedBy: [9] },
-      { pair: '64', blockedBy: [4] },
-      { pair: '37', blockedBy: [3] },
-    ])
-  })
-
-  it('สร้าง WIN6XGEN ครบจากตัวอย่างสองชุดสามตัว', () => {
+  it('จัด WIN6 ได้ทันทีโดยไม่ใช้เงื่อนไขแบ่งกลุ่ม MOD10', () => {
     const result = analyzeWin6Xgen({
       draw_date: '2026-08-20',
-      top3: '240',
-      bottom2: '56',
-      history: [{ draw_date: '2026-08-19', top3: '195', bottom2: '38' }],
+      top3: '001',
+      bottom2: '02',
+      history: [
+        { draw_date: '2026-08-19', top3: '222', bottom2: '33' },
+        { draw_date: '2026-08-18', top3: '444', bottom2: '44' },
+        { draw_date: '2026-08-17', top3: '555', bottom2: '55' },
+        { draw_date: '2026-08-16', top3: '666', bottom2: '66' },
+        { draw_date: '2026-08-15', top3: '123', bottom2: '45' },
+      ],
     })
 
-    expect(result).toMatchObject({ f: 4, g: 1, h: 5, win6: [4, 1, 5, 9, 3, 8] })
-    expect(result.mod10Groups).toEqual([[4, 1, 5], [9, 3, 8]])
+    expect(result).toMatchObject({
+      f: 1,
+      g: 2,
+      h: 3,
+      selectionMode: 'HISTORY_FIRST_UNIQUE',
+      win6: [1, 2, 3, 4, 5, 6],
+      reserve: null,
+    })
+    expect(result).not.toHaveProperty('mod10Groups')
+    expect(result).not.toHaveProperty('partitionType')
   })
 
-  it('เจาะ 2/3 มีอย่างละ 5 ชุดและอิงลำดับ WIN6 เท่านั้น', () => {
+  it('เก็บได้สูงสุด 7 ตัวและส่งตัวที่ 7 เป็นเลขวงเล็บ', () => {
+    const result = analyzeWin6Xgen({
+      draw_date: '2026-08-20',
+      top3: '001',
+      bottom2: '02',
+      history: [
+        { draw_date: '2026-08-19', top3: '222', bottom2: '33' },
+        { draw_date: '2026-08-18', top3: '444', bottom2: '44' },
+        { draw_date: '2026-08-17', top3: '555', bottom2: '55' },
+        { draw_date: '2026-08-16', top3: '666', bottom2: '66' },
+        { draw_date: '2026-08-15', top3: '789', bottom2: '00' },
+      ],
+    })
+
+    expect(result.candidatePool).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(result.win6).toEqual([1, 2, 3, 4, 5, 6])
+    expect(result.reserve).toBe(7)
+    expect(result.pinDigits).toEqual([1, 2, 3, 4, 5, 6, 7])
+    expect(result.pin2.some((item) => item.usesParenthesizedDigit)).toBe(true)
+    expect(result.pin3.some((item) => item.usesParenthesizedDigit)).toBe(true)
+  })
+
+  it('เจาะ 2/3 จาก WIN6 มีอย่างละ 5 ชุด', () => {
     const win6 = [6, 0, 7, 8, 3, 9]
     expect(buildPin2(win6).map((item) => item.pair)).toEqual(['60', '67', '68', '03', '09'])
     expect(buildPin3(win6).map((item) => item.triple)).toEqual(['607', '683', '089', '679', '073'])
+  })
+
+  it('เจาะ 2/3 จาก 7 ตัวมีอย่างละ 5 ชุดและใช้เลขวงเล็บจริง', () => {
+    const win7 = [9, 4, 3, 7, 5, 2, 0]
+    const pin2 = buildPin2(win7)
+    const pin3 = buildPin3(win7)
+
+    expect(pin2.map((item) => item.pair)).toEqual(['94', '93', '97', '45', '20'])
+    expect(pin3.map((item) => item.triple)).toEqual(['943', '975', '472', '932', '940'])
+    expect(pin2).toHaveLength(5)
+    expect(pin3).toHaveLength(5)
+    expect(pin2.filter((item) => item.usesParenthesizedDigit)).toHaveLength(1)
+    expect(pin3.filter((item) => item.usesParenthesizedDigit)).toHaveLength(1)
   })
 })

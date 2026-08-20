@@ -75,7 +75,6 @@ app.innerHTML = `
         <article class="win-card ornate-card">
           <div class="mini-banner">WIN 6 ตัว</div>
           <div id="win6" class="win-digits"></div>
-          <div class="reserve-line"><span>สำรอง</span><b id="reserve">—</b></div>
         </article>
 
         <div class="drill-stack">
@@ -166,7 +165,6 @@ const elements = {
   rudMain: document.querySelector('#rudMain'),
   rudSub: document.querySelector('#rudSub'),
   win6: document.querySelector('#win6'),
-  reserve: document.querySelector('#reserve'),
   pin2: document.querySelector('#pin2'),
   pin3: document.querySelector('#pin3'),
   topPattern: document.querySelector('#topPattern'),
@@ -356,10 +354,15 @@ function renderResult(analysis) {
   elements.rudSub.textContent = analysis.rud[1]
   elements.drawDate.textContent = formatThaiDate(analysis.source.draw_date)
 
+  const parenthesizedDigit = Number.isInteger(analysis.reserve) ? `
+    <span class="win-parenthesized" aria-label="เลขวงเล็บ ${analysis.reserve}">
+      <i>(</i><b>${analysis.reserve}</b><i>)</i>
+    </span>
+  ` : ''
+
   elements.win6.innerHTML = analysis.win6.map((digit, index) => `
     <span class="win-digit ${index < 2 ? 'axis' : ''} ${index % 2 ? 'ruby' : 'jade'}"><b>${digit}</b></span>
-  `).join('')
-  elements.reserve.textContent = analysis.reserve ?? '—'
+  `).join('') + parenthesizedDigit
   elements.pin2.innerHTML = analysis.pin2.map((item) => `<b>${item.pair}</b>`).join('')
   elements.pin3.innerHTML = analysis.pin3.map((item) => `<b>${item.triple}</b>`).join('')
 
