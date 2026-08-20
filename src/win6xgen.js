@@ -1,6 +1,7 @@
 export const HISTORY_LIMIT = 30
 export const GH_SEARCH_WINDOW = 5
 export const EXTENDED_SEARCH_WINDOWS = [5, 6, 7, 8]
+export const MAX_WIN_DIGITS = 7
 
 export class Win6XgenError extends Error {
   constructor(code, message, details = {}) {
@@ -25,6 +26,16 @@ const PIN3_TEMPLATES = [
   [1, 3, 5],
   [0, 2, 5],
   [1, 2, 4],
+]
+
+const PIN2_RESERVE_TEMPLATES = [
+  [0, 6],
+  [1, 6],
+]
+
+const PIN3_RESERVE_TEMPLATES = [
+  [0, 1, 6],
+  [0, 3, 6],
 ]
 
 export function mod10(value) {
@@ -105,7 +116,6 @@ export function searchCandidateSources(history, f, g, h, pairWindow = GH_SEARCH_
   const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
   if (!rows.length) throw new Error('WIN6XGEN ต้องมีข้อมูลย้อนหลัง')
 
-  // Backward compatibility for older direct calls: (history, g, h)
   if (h === undefined) {
     h = g
     g = f
@@ -154,60 +164,56 @@ export function buildCandidatePool(fgh, sourceSearch) {
     fgh.g,
     fgh.h,
     ...sourceSearch.matches.flatMap((match) => resultDigits(match.row)),
-  ])
+  ]).slice(0, MAX_WIN_DIGITS)
 }
 
-// Legacy export retained for compatibility. MOD10 is no longer used to select WIN6.
 export function partitionWin6(values) {
   if (!Array.isArray(values) || values.length !== 6 || uniqueFirst(values).length !== 6) return null
   return { type: 'NONE', groups: [] }
 }
 
-// Legacy export retained for compatibility. Selection is now first-six unique digits only.
 export function findFirstValidWin6(candidatePool, requiredDigits = []) {
-  const pool = uniqueFirst(candidatePool)
+  const pool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
   const required = uniqueFirst(requiredDigits)
   if (pool.length < 6) return null
 
-  const values = pool.slice(0, 6)
-  if (!required.every((digit) => values.includes(digit))) {
-    const merged = uniqueFirst([...required, ...pool])
-    if (merged.length < 6) return null
-    return { values: merged.slice(0, 6), type: 'NONE', groups: [] }
-  }
+  const merged = required.every((digit) => pool.includes(digit))
+    ? pool
+    : uniqueFirst([...required, ...pool]).slice(0, MAX_WIN_DIGITS)
 
-  return { values, type: 'NONE', groups: [] }
+  if (merged.length < 6) return null
+  return { values: merged.slice(0, 6), type: 'NONE', groups: [] }
 }
 
-// Legacy export retained for compatibility. No MOD10 filtering is applied anymore.
 export function findHistoryZeroPairs() {
   return []
 }
 
 export function selectWin6(candidatePool, history, requiredDigits = []) {
-  const selected = findFirstValidWin6(candidatePool, requiredDigits)
+  const cappedPool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
+  const selected = findFirstValidWin6(cappedPool, requiredDigits)
   if (!selected) {
     throw new Win6XgenError(
       'INSUFFICIENT_WIN6_DIGITS',
       'เลขไม่ครบ 6 ตัวสำหรับ WIN6',
-      { candidatePool: uniqueFirst(candidatePool), requiredDigits: uniqueFirst(requiredDigits) },
+      { candidatePool: cappedPool, requiredDigits: uniqueFirst(requiredDigits) },
     )
   }
 
   return {
     ...selected,
-    candidatePool: uniqueFirst(candidatePool),
+    candidatePool: cappedPool,
     fillPair: null,
     selectionMode: 'HISTORY_FIRST_UNIQUE',
   }
 }
 
-// Legacy export retained for compatibility. F fallback is now handled by source priority search.
 export function searchWin6ByF(candidatePool) {
-  const selected = findFirstValidWin6(candidatePool)
+  const cappedPool = uniqueFirst(candidatePool).slice(0, MAX_WIN_DIGITS)
+  const selected = findFirstValidWin6(cappedPool)
   return {
     selected,
-    candidatePool: uniqueFirst(candidatePool),
+    candidatePool: cappedPool,
     match: null,
     attempts: [],
   }
@@ -228,7 +234,7 @@ function collectWin6FromSource(history, fgh, sourceSearch) {
     candidatePool = uniqueFirst([
       ...base,
       ...capped.flatMap((row) => resultDigits(row)),
-    ])
+    ]).slice(0, MAX_WIN_DIGITS)
     rowsUsed = capped.length
 
     if (candidatePool.length >= 6) {
@@ -252,21 +258,33 @@ function collectWin6FromSource(history, fgh, sourceSearch) {
   )
 }
 
-export function buildPin2(win6) {
-  if (!Array.isArray(win6) || win6.length !== 6) return []
-  return PIN2_TEMPLATES.map((positions) => ({
-    pair: positions.map((position) => win6[position]).join(''),
+export function buildPin2(winDigits) {
+  if (!Array.isArray(winDigits) || winDigits.length < 6) return []
+  const capped = uniqueFirst(winDigits).slice(0, MAX_WIN_DIGITS)
+  const templates = capped.length === 7
+    ? [...PIN2_TEMPLATES, ...PIN2_RESERVE_TEMPLATES]
+    : PIN2_TEMPLATES
+
+  return templates.map((positions) => ({
+    pair: positions.map((position) => capped[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
+    usesReserve: positions.includes(6),
   }))
 }
 
-export function buildPin3(win6) {
-  if (!Array.isArray(win6) || win6.length !== 6) return []
-  return PIN3_TEMPLATES.map((positions) => ({
-    triple: positions.map((position) => win6[position]).join(''),
+export function buildPin3(winDigits) {
+  if (!Array.isArray(winDigits) || winDigits.length < 6) return []
+  const capped = uniqueFirst(winDigits).slice(0, MAX_WIN_DIGITS)
+  const templates = capped.length === 7
+    ? [...PIN3_TEMPLATES, ...PIN3_RESERVE_TEMPLATES]
+    : PIN3_TEMPLATES
+
+  return templates.map((positions) => ({
+    triple: positions.map((position) => capped[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
+    usesReserve: positions.includes(6),
   }))
 }
 
@@ -285,11 +303,12 @@ export function analyzeWin6Xgen(input) {
   const sourceSearch = searchCandidateSources(history, fgh.f, fgh.g, fgh.h)
   const collected = collectWin6FromSource(history, fgh, sourceSearch)
   const selected = selectWin6(collected.candidatePool, history, [fgh.f, fgh.g])
-  const reserve = selected.candidatePool.find((digit) => !selected.values.includes(digit)) ?? null
+  const reserve = selected.candidatePool.length === 7 ? selected.candidatePool[6] : null
+  const pinDigits = reserve === null ? selected.values : [...selected.values, reserve]
 
   return {
     engine: 'WIN6XGEN',
-    version: '3.0.0',
+    version: '3.1.0',
     source,
     history,
     historyUsed: Math.min(history.length + 1, HISTORY_LIMIT),
@@ -307,7 +326,8 @@ export function analyzeWin6Xgen(input) {
     partitionType: 'NONE',
     mod10Groups: [],
     reserve,
-    pin2: buildPin2(selected.values),
-    pin3: buildPin3(selected.values),
+    pinDigits,
+    pin2: buildPin2(pinDigits),
+    pin3: buildPin3(pinDigits),
   }
 }
