@@ -23,7 +23,7 @@ describe('WIN6XGEN copy', () => {
     expect(text).toContain('🍀 WIN6XGEN | ตลาดทดสอบ')
     expect(text).toContain('240-56')
     expect(text).toContain('⚡ รูด 4 • 1')
-    expect(text).toContain('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8')
+    expect(text).toContain('✨ WIN6 4 • 1 • 9 • 5 • 3 • 8')
     expect(text).toContain('🧬 ปกติ')
     expect(text).toContain('👥 พี่น้อง 56')
     expect(text).toContain('🎯 เจาะ 2')
@@ -64,12 +64,12 @@ describe('WIN6XGEN copy', () => {
   it('คัดลอกแยกแต่ละส่วนได้', () => {
     const result = { ...example(), reserve: 8 }
     expect(formatCopySection(result, 'rud')).toBe('⚡ รูด 4 • 1')
-    expect(formatCopySection(result, 'win6')).toBe('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8 (8)')
-    expect(formatCopyText(result)).toContain('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8 (8)')
+    expect(formatCopySection(result, 'win6')).toBe('✨ WIN6 4 • 1 • 9 • 5 • 3 • 8 (8)')
+    expect(formatCopyText(result)).toContain('✨ WIN6 4 • 1 • 9 • 5 • 3 • 8 (8)')
   })
 
   it('ไม่เติมวงเล็บสำรองเมื่อไม่มีเลขสำรอง', () => {
     const result = example()
-    expect(formatCopySection(result, 'win6')).toBe('✨ WIN6 4 • 1 • 5 • 9 • 3 • 8')
+    expect(formatCopySection(result, 'win6')).toBe('✨ WIN6 4 • 1 • 9 • 5 • 3 • 8')
   })
 })
