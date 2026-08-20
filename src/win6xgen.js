@@ -78,7 +78,7 @@ export function resultDigits(row) {
   return `${normalized.top3}${normalized.bottom2}`.split('').map(Number)
 }
 
-export function calculateFGH(top3, bottom2) {
+export function calculateFG(top3, bottom2) {
   const normalized = normalizeResult({ top3, bottom2 })
   if (!normalized) throw new Error('ผลล่าสุดต้องครบ 3 ตัวบน และ 2 ตัวล่าง')
 
@@ -87,7 +87,6 @@ export function calculateFGH(top3, bottom2) {
   const isTriple = a === b && b === c
   const f = isTriple ? mod10(a + b + c) : mod10(b + c)
   const g = mod10(d + e)
-  const h = mod10(f + g)
 
   return {
     a,
@@ -97,10 +96,17 @@ export function calculateFGH(top3, bottom2) {
     e,
     f,
     g,
-    h,
     isTriple,
     rud: [f, g],
   }
+}
+
+export function shadowDigit(value) {
+  const digit = Number(value)
+  if (!Number.isInteger(digit) || digit < 0 || digit > 9) {
+    throw new Error('เลขเงาต้องเป็นเลข 0-9')
+  }
+  return mod10(digit + 5)
 }
 
 function rowContainsTargets(row, targets) {
@@ -122,20 +128,18 @@ function firstMatchInWindow(rows, targets, window) {
   return { row: rows[rowIndex], rowIndex }
 }
 
-export function searchCandidateSources(history, f, g, h) {
+export function searchCandidateSources(history, f, g) {
   const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
   if (!rows.length) throw new Error('WIN6XGEN ต้องมีข้อมูลย้อนหลัง')
 
   const strategies = [
-    { mode: 'G+H', targets: [g, h] },
     { mode: 'F+G', targets: [f, g] },
-    { mode: 'H', targets: [h] },
-    { mode: 'G', targets: [g] },
     { mode: 'F', targets: [f] },
+    { mode: 'G', targets: [g] },
   ]
 
-  for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
-    for (const strategy of strategies) {
+  for (const strategy of strategies) {
+    for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
       const match = firstMatchInWindow(rows, strategy.targets, window)
       if (!match) continue
 
@@ -150,12 +154,12 @@ export function searchCandidateSources(history, f, g, h) {
 
   throw new Win6XgenError(
     'SOURCE_NOT_FOUND',
-    `ไม่พบ G+H, F+G, H=${h}, G=${g} หรือ F=${f} ภายใน 8 งวดย้อนหลัง`,
-    { f, g, h, historyChecked: Math.min(rows.length, MAX_SEARCH_WINDOW) },
+    `ไม่พบ F+G, F=${f} หรือ G=${g} ภายใน 8 งวดย้อนหลัง`,
+    { f, g, historyChecked: Math.min(rows.length, MAX_SEARCH_WINDOW) },
   )
 }
 
-export function collectWinDigits(history, fgh, sourceSearch) {
+export function collectWinDigits(history, fg, sourceSearch) {
   const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
   const sourceStartIndex = sourceSearch?.match?.rowIndex
 
@@ -163,36 +167,57 @@ export function collectWinDigits(history, fgh, sourceSearch) {
     throw new Win6XgenError('INVALID_SOURCE', 'ไม่พบตำแหน่งงวดเริ่มต้นสำหรับจัด WIN6')
   }
 
-  const baseDigits = uniqueFirst([fgh.f, fgh.g, fgh.h])
+  const baseDigits = uniqueFirst([fg.f, fg.g])
   const rowsFromSource = rows.slice(sourceStartIndex)
+  let historyPool = [...baseDigits]
+  let collectionRowsUsed = 0
 
   for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
     const rowsUsed = rowsFromSource.slice(0, window)
-    const candidatePool = uniqueFirst([
+    historyPool = uniqueFirst([
       ...baseDigits,
       ...rowsUsed.flatMap(resultDigits),
     ]).slice(0, MAX_WIN_DIGITS)
+    collectionRowsUsed = rowsUsed.length
 
-    if (candidatePool.length >= 6) {
+    if (historyPool.length >= 6) {
       return {
         baseDigits,
-        candidatePool,
+        candidatePool: historyPool,
         collectionWindowUsed: window,
-        collectionRowsUsed: rowsUsed.length,
+        collectionRowsUsed,
         sourceStartIndex,
+        shadowDigitsAdded: [],
+        usedShadowFill: false,
       }
+    }
+  }
+
+  const shadowCandidates = uniqueFirst([shadowDigit(fg.f), shadowDigit(fg.g)])
+  const shadowDigitsAdded = shadowCandidates.filter((digit) => !historyPool.includes(digit))
+  const candidatePool = uniqueFirst([...historyPool, ...shadowDigitsAdded]).slice(0, MAX_WIN_DIGITS)
+
+  if (candidatePool.length >= 6) {
+    return {
+      baseDigits,
+      candidatePool,
+      collectionWindowUsed: MAX_SEARCH_WINDOW,
+      collectionRowsUsed,
+      sourceStartIndex,
+      shadowDigitsAdded,
+      usedShadowFill: true,
     }
   }
 
   throw new Win6XgenError(
     'INSUFFICIENT_WIN_DIGITS',
-    'ไล่ย้อนหลังจากงวดที่พบถึงงวดที่ 8 แล้วยังมีเลขไม่ครบ 6 ตัว',
+    'ไล่ย้อนหลังถึงงวดที่ 8 และเติมเงา F/G แล้วยังมีเลขไม่ครบ 6 ตัว',
     {
       baseDigits,
-      candidatePool: uniqueFirst([
-        ...baseDigits,
-        ...rowsFromSource.slice(0, MAX_SEARCH_WINDOW).flatMap(resultDigits),
-      ]).slice(0, MAX_WIN_DIGITS),
+      candidatePool,
+      historyPool,
+      shadowCandidates,
+      shadowDigitsAdded,
       sourceStartIndex,
       collectionRowsAvailable: Math.min(rowsFromSource.length, MAX_SEARCH_WINDOW),
     },
@@ -238,26 +263,28 @@ export function analyzeWin6Xgen(input) {
 
   if (!history.length) throw new Error('WIN6XGEN ต้องมีผลย้อนหลังอย่างน้อย 1 งวด')
 
-  const fgh = calculateFGH(source.top3, source.bottom2)
-  const sourceSearch = searchCandidateSources(history, fgh.f, fgh.g, fgh.h)
-  const collected = collectWinDigits(history, fgh, sourceSearch)
+  const fg = calculateFG(source.top3, source.bottom2)
+  const sourceSearch = searchCandidateSources(history, fg.f, fg.g)
+  const collected = collectWinDigits(history, fg, sourceSearch)
   const winDigits = collected.candidatePool
   const win6 = winDigits.slice(0, 6)
   const reserve = winDigits.length === MAX_WIN_DIGITS ? winDigits[6] : null
 
   return {
     engine: 'WIN6XGEN',
-    version: '3.1.1',
+    version: '4.0.0',
     source,
     history,
     historyUsed: Math.min(history.length + 1, HISTORY_LIMIT),
-    ...fgh,
+    ...fg,
     sourceSearch,
     selectionMode: 'HISTORY_FIRST_UNIQUE',
     baseDigits: collected.baseDigits,
     candidatePool: winDigits,
     collectionWindowUsed: collected.collectionWindowUsed,
     collectionRowsUsed: collected.collectionRowsUsed,
+    shadowDigitsAdded: collected.shadowDigitsAdded,
+    usedShadowFill: collected.usedShadowFill,
     sourceStartIndex: collected.sourceStartIndex,
     win6,
     reserve,
