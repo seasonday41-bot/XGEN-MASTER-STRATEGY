@@ -97,31 +97,62 @@ function firstTargetMatch(rows, target) {
   return { kind: String(target), target: [target], row: rows[rowIndex], rowIndex }
 }
 
-export function searchCandidateSources(history, g, h, pairWindow = GH_SEARCH_WINDOW) {
+export function searchCandidateSources(history, f, g, h, pairWindow = GH_SEARCH_WINDOW) {
   const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
   if (!rows.length) throw new Error('WIN6XGEN ต้องมีข้อมูลย้อนหลัง')
 
-  const pairIndex = rows
-    .slice(0, pairWindow)
-    .findIndex((row) => rowContainsTargets(row, [g, h]))
+  // Backward compatibility for older direct calls: (history, g, h)
+  if (h === undefined) {
+    h = g
+    g = f
+    f = null
+  }
 
-  if (pairIndex >= 0) {
-    return {
-      mode: 'G+H',
-      pairWindow,
-      matches: [{ kind: 'G+H', target: [g, h], row: rows[pairIndex], rowIndex: pairIndex }],
+  const pairStrategies = [
+    { mode: 'G+H', kind: 'G+H', targets: [g, h] },
+    ...(Number.isInteger(f) ? [{ mode: 'F+G', kind: 'F+G', targets: [f, g] }] : []),
+  ]
+
+  for (const strategy of pairStrategies) {
+    const rowIndex = rows
+      .slice(0, pairWindow)
+      .findIndex((row) => rowContainsTargets(row, strategy.targets))
+
+    if (rowIndex >= 0) {
+      return {
+        mode: strategy.mode,
+        pairWindow,
+        matches: [{
+          kind: strategy.kind,
+          target: strategy.targets,
+          row: rows[rowIndex],
+          rowIndex,
+        }],
+      }
     }
   }
 
-  const hMatch = firstTargetMatch(rows, h)
-  const gMatch = firstTargetMatch(rows, g)
-  const matches = [hMatch, gMatch].filter(Boolean)
+  const singleStrategies = [
+    { mode: 'H', kind: 'H', target: h },
+    { mode: 'G', kind: 'G', target: g },
+    ...(Number.isInteger(f) ? [{ mode: 'F', kind: 'F', target: f }] : []),
+  ]
 
-  if (!matches.length) {
-    throw new Error(`ไม่พบ H=${h} หรือ G=${g} ในข้อมูลย้อนหลัง`)
+  for (const strategy of singleStrategies) {
+    const match = firstTargetMatch(rows, strategy.target)
+    if (!match) continue
+    return {
+      mode: strategy.mode,
+      pairWindow,
+      matches: [{ ...match, kind: strategy.kind }],
+    }
   }
 
-  return { mode: 'H→G', pairWindow, matches }
+  throw new Error(
+    Number.isInteger(f)
+      ? `ไม่พบ G+H, F+G, H=${h}, G=${g} หรือ F=${f} ในข้อมูลย้อนหลัง`
+      : `ไม่พบ G+H, H=${h} หรือ G=${g} ในข้อมูลย้อนหลัง`,
+  )
 }
 
 export function buildCandidatePool(fgh, sourceSearch) {
@@ -343,7 +374,7 @@ export function analyzeWin6Xgen(input) {
   if (!history.length) throw new Error('WIN6XGEN ต้องมีผลย้อนหลังอย่างน้อย 1 งวด')
 
   const fgh = calculateFGH(source.top3, source.bottom2)
-  const sourceSearch = searchCandidateSources(history, fgh.g, fgh.h)
+  const sourceSearch = searchCandidateSources(history, fgh.f, fgh.g, fgh.h)
   const initialCandidatePool = buildCandidatePool(fgh, sourceSearch)
   let selected
   let primaryError = null
