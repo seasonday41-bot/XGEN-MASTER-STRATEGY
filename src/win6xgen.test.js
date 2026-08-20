@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  analyzeWin6Xgen,
   buildPin2,
   buildPin3,
   calculateFG,
