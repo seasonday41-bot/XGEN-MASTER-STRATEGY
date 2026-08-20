@@ -16,6 +16,7 @@ app.innerHTML = `
       <button id="menuButton" class="round-menu" type="button" aria-label="เลือกตลาด"><span></span><span></span><span></span></button>
       <div class="fortune-charm jade" aria-hidden="true"><b>福</b><i></i></div>
       <div class="hero-scenery" aria-hidden="true"><i></i><i></i><i></i><span></span></div>
+      <div class="hero-dragon" aria-hidden="true"></div>
       <div class="hero-brand">
         <div class="crown-mark" aria-hidden="true"><i></i><b>◆</b><i></i></div>
         <h1>XGEN</h1>
@@ -56,7 +57,7 @@ app.innerHTML = `
       <button id="issueHistoryButton" class="issue-history-button" type="button">ดูข้อมูลย้อนหลังทั้งหมด</button>
     </section>
 
-    <section id="result" class="result hidden" aria-live="polite">
+    <section id="result" class="result hidden" aria-live="polite" aria-busy="false">
       <article class="latest-palace ornate-card">
         <div class="ornate-corner tl"></div><div class="ornate-corner tr"></div>
         <div class="ornate-corner bl"></div><div class="ornate-corner br"></div>
@@ -72,24 +73,24 @@ app.innerHTML = `
       </article>
 
       <section class="output-grid">
-        <article class="win-card ornate-card">
+        <article class="win-card ornate-card viewport-reveal">
           <div class="mini-banner">WIN 6 ตัว</div>
           <div id="win6" class="win-digits"></div>
         </article>
 
         <div class="drill-stack">
-          <article class="drill-card emerald-card">
+          <article class="drill-card emerald-card viewport-reveal">
             <h2><span>เจาะ 2 ตัว</span><i>◇</i></h2>
             <div id="pin2" class="pick-row"></div>
           </article>
-          <article class="drill-card emerald-card">
+          <article class="drill-card emerald-card viewport-reveal">
             <h2><span>เจาะ 3 ตัว</span><i>◇</i></h2>
             <div id="pin3" class="pick-row triple-row"></div>
           </article>
         </div>
       </section>
 
-      <article class="pattern-card ornate-card">
+      <article class="pattern-card ornate-card viewport-reveal">
         <div class="pattern-head">
           <div><small>PATTERN FLOW</small><h2>สัญญาณรอบถัดไป</h2></div>
           <span id="topPattern" class="pattern-badge">NORMAL</span>
@@ -102,7 +103,7 @@ app.innerHTML = `
         <p>ใช้เป็นสัญญาณติดตามเท่านั้น ไม่ใช่การยืนยันผล</p>
       </article>
 
-      <article class="info-card ornate-card">
+      <article class="info-card ornate-card viewport-reveal">
         <h2>ข้อมูลเพิ่มเติม</h2>
         <div class="info-grid">
           <div><span class="info-icon">◉</span><small>ประเภท</small><b id="infoMarket">—</b></div>
@@ -125,6 +126,7 @@ app.innerHTML = `
   </main>
 
   <nav class="bottom-nav" aria-label="เมนูหลัก">
+    <i class="nav-indicator" aria-hidden="true"></i>
     <button id="navHome" class="active" type="button"><span>⌂</span><b>หน้าหลัก</b></button>
     <button id="navMarket" type="button"><span>⌕</span><b>ค้นหางวด</b></button>
     <button id="navAnalyze" type="button"><span>☯</span><b>วิเคราะห์</b></button>
@@ -143,7 +145,7 @@ app.innerHTML = `
     <div id="historyList" class="history-list"></div>
   </dialog>
 
-  <div id="toast" class="toast" role="status">คัดลอกแล้ว ✓</div>
+  <div id="toast" class="toast" role="status">✓ คัดลอกแล้ว</div>
 `
 
 const elements = {
@@ -162,8 +164,11 @@ const elements = {
   result: document.querySelector('#result'),
   sourceTop: document.querySelector('#sourceTop'),
   sourceBottom: document.querySelector('#sourceBottom'),
+  latestNumber: document.querySelector('.latest-number'),
+  rudBanner: document.querySelector('.rud-banner'),
   rudMain: document.querySelector('#rudMain'),
   rudSub: document.querySelector('#rudSub'),
+  winCard: document.querySelector('.win-card'),
   win6: document.querySelector('#win6'),
   pin2: document.querySelector('#pin2'),
   pin3: document.querySelector('#pin3'),
@@ -186,14 +191,64 @@ const elements = {
   historyTitle: document.querySelector('#historyTitle'),
   historyList: document.querySelector('#historyList'),
   toast: document.querySelector('#toast'),
+  bottomNav: document.querySelector('.bottom-nav'),
+  navButtons: [...document.querySelectorAll('.bottom-nav button')],
 }
 
 const state = {
   markets: [],
   selectedMarket: null,
+  rows: [],
+  selectedIndex: 0,
   current: null,
   loading: false,
 }
+
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)')
+
+function nextPaint() {
+  return new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)))
+}
+
+function restartAnimation(element, className) {
+  if (!element) return
+  element.classList.remove(className)
+  void element.offsetWidth
+  element.classList.add(className)
+}
+
+function setLoading(isLoading) {
+  elements.result.classList.toggle('is-loading', isLoading)
+  elements.result.setAttribute('aria-busy', String(isLoading))
+}
+
+function setActiveNav(button) {
+  const index = elements.navButtons.indexOf(button)
+  if (index < 0) return
+  elements.navButtons.forEach((item) => item.classList.toggle('active', item === button))
+  elements.bottomNav.style.setProperty('--nav-index', index)
+}
+
+function observeReveals() {
+  const revealElements = document.querySelectorAll('.viewport-reveal')
+  if (reduceMotion.matches || !('IntersectionObserver' in window)) {
+    revealElements.forEach((element) => element.classList.add('is-visible'))
+    return
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return
+      entry.target.classList.add('is-visible')
+      observer.unobserve(entry.target)
+    })
+  }, { threshold: 0.14 })
+
+  revealElements.forEach((element) => observer.observe(element))
+}
+
+window.requestAnimationFrame(() => document.body.classList.add('page-ready'))
+observeReveals()
 
 function flagForMarket(name) {
   const value = String(name || '').toLocaleLowerCase('th-TH')
@@ -221,14 +276,36 @@ function setStatus(message, type = 'ready') {
   elements.status.querySelector('span').textContent = message
 }
 
-function showToast(message = 'คัดลอกแล้ว ✓') {
+function showToast(message = '✓ คัดลอกแล้ว') {
   elements.toast.textContent = message
   elements.toast.classList.add('show')
   window.clearTimeout(showToast.timer)
   showToast.timer = window.setTimeout(() => elements.toast.classList.remove('show'), 1500)
 }
 
-async function copyText(text) {
+function showCopyFeedback(button) {
+  if (!button) return
+  const icon = button.querySelector('span')
+  const label = button.querySelector('b')
+  const originalIcon = icon?.textContent
+  const originalLabel = label?.innerHTML
+  const originalText = button.textContent
+
+  button.classList.add('copied')
+  if (icon) icon.textContent = '✓'
+  if (label) label.textContent = 'คัดลอกแล้ว'
+  if (!icon && !label) button.textContent = '✓ คัดลอกแล้ว'
+
+  window.clearTimeout(button.copyResetTimer)
+  button.copyResetTimer = window.setTimeout(() => {
+    button.classList.remove('copied')
+    if (icon) icon.textContent = originalIcon
+    if (label) label.innerHTML = originalLabel
+    if (!icon && !label) button.textContent = originalText
+  }, 1300)
+}
+
+async function copyText(text, trigger) {
   try {
     await navigator.clipboard.writeText(text)
   } catch {
@@ -243,6 +320,7 @@ async function copyText(text) {
     textarea.remove()
   }
   navigator.vibrate?.(25)
+  showCopyFeedback(trigger)
   showToast()
 }
 
@@ -320,15 +398,30 @@ function renderPattern(pattern) {
 }
 
 function renderHistory() {
-  if (!state.current) return
-  elements.historyTitle.textContent = `ประวัติ ${state.current.marketName}`
-  elements.historyList.innerHTML = state.current.allRows.slice(0, 20).map((row, index) => `
-    <div class="history-item ${index === 0 ? 'latest' : ''}">
+  if (!state.rows.length || !state.selectedMarket) return
+  elements.historyTitle.textContent = `ประวัติ ${state.selectedMarket.market_name}`
+  elements.historyList.innerHTML = state.rows.slice(0, 20).map((row, index) => `
+    <button type="button" class="history-item ${index === 0 ? 'latest' : ''} ${index === state.selectedIndex ? 'selected' : ''}" data-history-index="${index}">
       <span>${String(index + 1).padStart(2, '0')}</span>
       <div><small>${formatThaiDate(row.draw_date)}</small><b>${row.top3}<i>–</i>${row.bottom2}</b></div>
-      <em>${index === 0 ? 'ล่าสุด' : ''}</em>
-    </div>
+      <em>${index === state.selectedIndex ? 'กำลังดู' : index === 0 ? 'ล่าสุด' : ''}</em>
+    </button>
   `).join('')
+}
+
+function analyzeHistoryAt(index) {
+  const source = state.rows[index]
+  const history = state.rows.slice(index + 1)
+  if (!source || !history.length) throw new Error('ข้อมูลย้อนหลังไม่พอสำหรับงวดนี้')
+
+  const core = analyzeWin6Xgen({ ...source, history })
+  const pattern = analyzeSyntraXPattern(core.source, core.history, core.rud)
+  return {
+    marketName: state.selectedMarket.market_name,
+    allRows: state.rows,
+    ...core,
+    pattern,
+  }
 }
 
 function renderIssue(error, market, data) {
@@ -341,6 +434,8 @@ function renderIssue(error, market, data) {
 
   elements.marketButtonName.textContent = market.market_name
   elements.marketFlag.textContent = flagForMarket(market.market_name)
+  elements.result.classList.add('hidden')
+  setLoading(false)
   elements.analysisIssue.classList.remove('hidden', 'reveal')
   void elements.analysisIssue.offsetWidth
   elements.analysisIssue.classList.add('reveal')
@@ -361,10 +456,10 @@ function renderResult(analysis) {
   ` : ''
 
   elements.win6.innerHTML = analysis.win6.map((digit, index) => `
-    <span class="win-digit ${index < 2 ? 'axis' : ''} ${index % 2 ? 'ruby' : 'jade'}"><b>${digit}</b></span>
+    <span class="win-digit ${index < 2 ? 'axis' : ''} ${index === 1 ? 'ruby' : 'jade'}" style="--win-index:${index}"><b>${digit}</b></span>
   `).join('') + parenthesizedDigit
-  elements.pin2.innerHTML = analysis.pin2.map((item) => `<b>${item.pair}</b>`).join('')
-  elements.pin3.innerHTML = analysis.pin3.map((item) => `<b>${item.triple}</b>`).join('')
+  elements.pin2.innerHTML = analysis.pin2.map((item, index) => `<b class="${index === 0 ? 'recommended' : index === 1 ? 'secondary' : ''}">${item.pair}</b>`).join('')
+  elements.pin3.innerHTML = analysis.pin3.map((item, index) => `<b class="${index === 0 ? 'recommended' : index === 1 ? 'secondary' : ''}">${item.triple}</b>`).join('')
 
   renderPattern(analysis.pattern)
   elements.infoMarket.textContent = analysis.marketName
@@ -375,9 +470,11 @@ function renderResult(analysis) {
   elements.marketFlag.textContent = flagForMarket(analysis.marketName)
   elements.analysisIssue.classList.add('hidden')
   elements.result.classList.remove('hidden')
-  elements.result.classList.remove('reveal')
-  void elements.result.offsetWidth
-  elements.result.classList.add('reveal')
+  setLoading(false)
+  restartAnimation(elements.result, 'reveal')
+  restartAnimation(elements.latestNumber, 'number-reveal')
+  restartAnimation(elements.rudBanner, 'rud-reveal')
+  restartAnimation(elements.winCard, 'win-reveal')
   renderHistory()
 }
 
@@ -386,27 +483,37 @@ async function runAnalysis(marketKey) {
   const market = state.markets.find((item) => item.market_key === marketKey)
   if (!market) return
 
+  const previous = {
+    market: state.selectedMarket,
+    rows: state.rows,
+    selectedIndex: state.selectedIndex,
+    current: state.current,
+  }
+  const hadVisibleResult = Boolean(state.current?.win6 && !elements.result.classList.contains('hidden'))
+
   state.loading = true
   state.selectedMarket = market
-  state.current = null
-  elements.result.classList.add('hidden')
   elements.analysisIssue.classList.add('hidden')
   elements.marketButtonName.textContent = market.market_name
   elements.marketFlag.textContent = flagForMarket(market.market_name)
+  setLoading(hadVisibleResult)
   setStatus('กำลังประมวลผลข้อมูลล่าสุด...', 'loading')
 
   let data
   try {
+    if (hadVisibleResult) await nextPaint()
     data = await loadMarketData(marketKey)
-    const core = analyzeWin6Xgen(data)
-    const pattern = analyzeSyntraXPattern(core.source, core.history, core.rud)
-    state.current = { marketName: market.market_name, allRows: data.allRows, ...core, pattern }
+    state.rows = data.allRows
+    state.selectedIndex = 0
+    state.current = analyzeHistoryAt(0)
     localStorage.setItem('xgen-market', marketKey)
     renderResult(state.current)
-    setStatus(`พร้อม • ${market.market_name} • อัปเดต ${formatThaiDate(core.source.draw_date)}`, 'ready')
+    setStatus(`พร้อม • ${market.market_name} • อัปเดต ${formatThaiDate(state.current.source.draw_date)}`, 'ready')
   } catch (error) {
     if (data && error.details) {
       console.warn(error)
+      state.rows = data.allRows
+      state.selectedIndex = 0
       state.current = {
         marketName: market.market_name,
         allRows: data.allRows,
@@ -417,10 +524,47 @@ async function runAnalysis(marketKey) {
       setStatus(`อัปเดตแล้ว • ยังไม่มีชุดสำหรับ ${market.market_name}`, 'blocked')
     } else {
       console.error(error)
+      if (hadVisibleResult) {
+        state.selectedMarket = previous.market
+        state.rows = previous.rows
+        state.selectedIndex = previous.selectedIndex
+        state.current = previous.current
+        elements.marketButtonName.textContent = previous.market.market_name
+        elements.marketFlag.textContent = flagForMarket(previous.market.market_name)
+      }
       setStatus(`${market.market_name} • ${error.message || 'คำนวณไม่สำเร็จ'}`, 'error')
     }
   } finally {
     state.loading = false
+    setLoading(false)
+  }
+}
+
+async function selectHistoryAt(index) {
+  if (state.loading || index === state.selectedIndex || !state.rows[index]) return
+
+  state.loading = true
+  setLoading(true)
+  setStatus('กำลังเปลี่ยนข้อมูลงวด...', 'loading')
+
+  try {
+    await nextPaint()
+    state.selectedIndex = index
+    state.current = analyzeHistoryAt(index)
+    renderResult(state.current)
+    setStatus(`พร้อม • ${state.selectedMarket.market_name} • งวด ${formatThaiDate(state.current.source.draw_date)}`, 'ready')
+  } catch (error) {
+    console.warn(error)
+    state.current = {
+      marketName: state.selectedMarket.market_name,
+      allRows: state.rows,
+      failure: true,
+    }
+    renderIssue(error, state.selectedMarket, state.rows[index])
+    setStatus(`งวด ${formatThaiDate(state.rows[index].draw_date)} • ${error.message}`, 'blocked')
+  } finally {
+    state.loading = false
+    setLoading(false)
   }
 }
 
@@ -459,12 +603,18 @@ elements.marketList.addEventListener('click', async (event) => {
 })
 
 elements.historyButton.addEventListener('click', () => {
-  if (!state.current) return
+  if (!state.rows.length) return
   renderHistory()
   openDialog(elements.historyDialog)
 })
 elements.issueHistoryButton.addEventListener('click', () => elements.historyButton.click())
 elements.dateButton.addEventListener('click', () => elements.historyButton.click())
+elements.historyList.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-history-index]')
+  if (!button) return
+  elements.historyDialog.close()
+  await selectHistoryAt(Number(button.dataset.historyIndex))
+})
 
 document.querySelectorAll('[data-close]').forEach((button) => {
   button.addEventListener('click', () => document.querySelector(`#${button.dataset.close}`).close())
@@ -477,10 +627,11 @@ document.querySelectorAll('.sheet-dialog').forEach((dialog) => {
 
 elements.copyActions.addEventListener('click', (event) => {
   const button = event.target.closest('[data-copy]')
-  if (button && state.current?.win6) copyText(formatCopySection(state.current, button.dataset.copy))
+  if (button && state.current?.win6) copyText(formatCopySection(state.current, button.dataset.copy), button)
 })
-elements.copyAll.addEventListener('click', () => state.current?.win6 && copyText(formatCopyText(state.current)))
+elements.copyAll.addEventListener('click', () => state.current?.win6 && copyText(formatCopyText(state.current), elements.copyAll))
 
+elements.navButtons.forEach((button) => button.addEventListener('click', () => setActiveNav(button)))
 document.querySelector('#navHome').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
 document.querySelector('#navMarket').addEventListener('click', openMarketDialog)
 document.querySelector('#navAnalyze').addEventListener('click', () => {
