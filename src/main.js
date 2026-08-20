@@ -32,16 +32,16 @@ app.innerHTML = `
     <section class="quick-controls" aria-label="ตัวเลือกข้อมูล">
       <button id="marketButton" class="control-pill market-pill" type="button">
         <span id="marketFlag" class="flag-orb">🌐</span>
-        <b id="marketButtonName">กำลังโหลดตลาด</b>
+        <span class="control-copy"><small>Market</small><b id="marketButtonName">กำลังโหลดตลาด</b></span>
         <i>⌄</i>
       </button>
       <button id="dateButton" class="control-pill date-pill" type="button">
         <span class="calendar-icon" aria-hidden="true">▦</span>
-        <b id="drawDate">—</b>
+        <span class="control-copy"><small>Date</small><b id="drawDate">—</b></span>
         <i>⌄</i>
       </button>
       <button id="historyButton" class="history-button" type="button">
-        <span aria-hidden="true">✦</span><b>ดูประวัติ</b>
+        <span aria-hidden="true">◷</span><b>ดูประวัติ</b>
       </button>
     </section>
 
@@ -106,18 +106,18 @@ app.innerHTML = `
       <article class="info-card ornate-card viewport-reveal">
         <h2>ข้อมูลเพิ่มเติม</h2>
         <div class="info-grid">
-          <div><span class="info-icon">◉</span><small>ประเภท</small><b id="infoMarket">—</b></div>
-          <div><span class="info-icon">▣</span><small>อ้างอิงข้อมูล</small><b id="historyUsed">—</b></div>
+          <div><span class="info-icon">⌂</span><small>ตลาด</small><b id="infoMarket">—</b></div>
+          <div><span class="info-icon">▥</span><small>ข้อมูลย้อนหลัง</small><b id="historyUsed">—</b></div>
           <div><span class="info-icon">♢</span><small>สถานะระบบ</small><b id="systemStatus">พร้อมใช้งาน</b></div>
         </div>
         <p class="disclaimer">* เป็นแนวทางจากโครงสร้างตัวเลขและข้อมูลย้อนหลัง ไม่การันตีผล 100%</p>
       </article>
 
       <section class="copy-actions" aria-label="คัดลอกผล">
-        <button type="button" data-copy="rud"><span>▣</span><b>คัดลอก<br>รูด</b></button>
-        <button type="button" data-copy="win6" class="ruby-button"><span>▣</span><b>คัดลอก<br>WIN6</b></button>
-        <button type="button" data-copy="pin2"><span>▣</span><b>คัดลอก<br>เจาะ 2</b></button>
-        <button type="button" data-copy="pin3" class="ruby-button"><span>▣</span><b>คัดลอก<br>เจาะ 3</b></button>
+        <button type="button" data-copy="rud"><span>▣</span><b>COPY<br>รูด</b></button>
+        <button type="button" data-copy="win6" class="ruby-button"><span>▣</span><b>COPY<br>WIN6</b></button>
+        <button type="button" data-copy="pin2"><span>▣</span><b>COPY<br>เจาะ 2</b></button>
+        <button type="button" data-copy="pin3" class="ruby-button"><span>▣</span><b>COPY<br>เจาะ 3</b></button>
       </section>
       <button id="copyAll" class="copy-all" type="button">คัดลอกผลทั้งหมด</button>
     </section>
