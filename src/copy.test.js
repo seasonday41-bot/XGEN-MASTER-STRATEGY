@@ -8,7 +8,10 @@ function example() {
     draw_date: '2026-08-20',
     top3: '240',
     bottom2: '56',
-    history: [{ draw_date: '2026-08-19', top3: '195', bottom2: '38' }],
+    history: [
+      { draw_date: '2026-08-19', top3: '419', bottom2: '53' },
+      { draw_date: '2026-08-18', top3: '418', bottom2: '53' },
+    ],
   })
   return {
     marketName: 'ตลาดทดสอบ',
@@ -33,7 +36,7 @@ describe('WIN6XGEN copy', () => {
   })
 
   it('จัด Copy แบบลูกค้าพร้อมเลขเบิ้ลและคู่พี่น้องของโครงสร้าง AAB', () => {
-    const pinDigits = [9, 4, 3, 7, 5, 2, 0]
+    const pinDigits = [9, 4, 3, 7, 5, 2]
     const result = {
       marketName: 'ฮานอยพิเศษ',
       source: { top3: '663', bottom2: '13' },
@@ -56,8 +59,8 @@ describe('WIN6XGEN copy', () => {
       '🎲 เบิ้ล 66',
       '👥 พี่น้อง 69 • 34',
       '',
-      '🎯 เจาะ 2 94 • 93 • 97 • 45 • 20',
-      '🎯 เจาะ 3 943 • 975 • 472 • 932 • 940',
+      '🎯 เจาะ 2 94 • 93 • 97 • 45 • 42',
+      '🎯 เจาะ 3 943 • 975 • 472 • 932 • 435',
     ].join('\n'))
   })
 

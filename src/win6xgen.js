@@ -1,6 +1,8 @@
 export const HISTORY_LIMIT = 30
-export const INITIAL_SEARCH_WINDOW = 5
-export const MAX_SEARCH_WINDOW = 8
+export const PRIMARY_SEARCH_LIMIT = 5
+export const EXTRA_SEARCH_LIMIT = 3
+export const INITIAL_SEARCH_WINDOW = PRIMARY_SEARCH_LIMIT
+export const MAX_SEARCH_WINDOW = PRIMARY_SEARCH_LIMIT + EXTRA_SEARCH_LIMIT
 export const MAX_WIN_DIGITS = 7
 
 export class Win6XgenError extends Error {
@@ -12,39 +14,21 @@ export class Win6XgenError extends Error {
   }
 }
 
-const PIN2_TEMPLATES = {
-  6: [
-    [0, 1],
-    [0, 2],
-    [0, 3],
-    [1, 4],
-    [1, 5],
-  ],
-  7: [
-    [0, 1],
-    [0, 2],
-    [0, 3],
-    [1, 4],
-    [5, 6],
-  ],
-}
+const PIN2_TEMPLATE = [
+  [0, 1],
+  [0, 2],
+  [0, 3],
+  [1, 4],
+  [1, 5],
+]
 
-const PIN3_TEMPLATES = {
-  6: [
-    [0, 1, 2],
-    [0, 3, 4],
-    [1, 3, 5],
-    [0, 2, 5],
-    [1, 2, 4],
-  ],
-  7: [
-    [0, 1, 2],
-    [0, 3, 4],
-    [1, 3, 5],
-    [0, 2, 5],
-    [0, 1, 6],
-  ],
-}
+const PIN3_TEMPLATE = [
+  [0, 1, 2],
+  [0, 3, 4],
+  [1, 3, 5],
+  [0, 2, 5],
+  [1, 2, 4],
+]
 
 export function mod10(value) {
   return ((Number(value) % 10) + 10) % 10
@@ -101,14 +85,6 @@ export function calculateFG(top3, bottom2) {
   }
 }
 
-export function shadowDigit(value) {
-  const digit = Number(value)
-  if (!Number.isInteger(digit) || digit < 0 || digit > 9) {
-    throw new Error('เลขเงาต้องเป็นเลข 0-9')
-  }
-  return mod10(digit + 5)
-}
-
 function rowContainsTargets(row, targets) {
   const counts = new Map()
   resultDigits(row).forEach((digit) => counts.set(digit, (counts.get(digit) || 0) + 1))
@@ -119,124 +95,172 @@ function rowContainsTargets(row, targets) {
   return [...needed.entries()].every(([digit, count]) => (counts.get(digit) || 0) >= count)
 }
 
-function firstMatchInWindow(rows, targets, window) {
-  const rowIndex = rows
-    .slice(0, window)
-    .findIndex((row) => rowContainsTargets(row, targets))
-
-  if (rowIndex < 0) return null
-  return { row: rows[rowIndex], rowIndex }
+function validateSearchDigit(value, label) {
+  const digit = Number(value)
+  if (!Number.isInteger(digit) || digit < 0 || digit > 9) {
+    throw new Win6XgenError('INVALID_FG', `${label} ต้องเป็นเลข 0-9`, { [label.toLowerCase()]: value })
+  }
+  return digit
 }
 
-export function searchCandidateSources(history, f, g) {
-  const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
+function buildSearchPhases(f, g) {
+  return [
+    {
+      mode: 'FG',
+      label: 'FG SEARCH',
+      targets: [f, g],
+      startIndex: 0,
+      limit: PRIMARY_SEARCH_LIMIT,
+      extra: false,
+    },
+    {
+      mode: 'F',
+      label: 'F SEARCH',
+      targets: [f],
+      startIndex: 0,
+      limit: PRIMARY_SEARCH_LIMIT,
+      extra: false,
+    },
+    {
+      mode: 'G',
+      label: 'G SEARCH',
+      targets: [g],
+      startIndex: 0,
+      limit: PRIMARY_SEARCH_LIMIT,
+      extra: false,
+    },
+    {
+      mode: 'FG_EXTRA',
+      label: 'FG EXTRA SEARCH',
+      targets: [f, g],
+      startIndex: PRIMARY_SEARCH_LIMIT,
+      limit: EXTRA_SEARCH_LIMIT,
+      extra: true,
+    },
+    {
+      mode: 'F_EXTRA',
+      label: 'F EXTRA SEARCH',
+      targets: [f],
+      startIndex: PRIMARY_SEARCH_LIMIT,
+      limit: EXTRA_SEARCH_LIMIT,
+      extra: true,
+    },
+    {
+      mode: 'G_EXTRA',
+      label: 'G EXTRA SEARCH',
+      targets: [g],
+      startIndex: PRIMARY_SEARCH_LIMIT,
+      limit: EXTRA_SEARCH_LIMIT,
+      extra: true,
+    },
+  ]
+}
+
+function collectionSummary(candidatePool, phases, winningPhase) {
+  const matches = phases.flatMap((phase) => phase.matchedRows)
+  const checkedIndexes = phases.flatMap((phase) => phase.checkedRowIndexes)
+
+  return {
+    candidatePool: [...candidatePool],
+    phases,
+    winningPhase: winningPhase.mode,
+    winningPhaseLabel: winningPhase.label,
+    usedExtraSearch: winningPhase.extra,
+    collectionRowsUsed: matches.length,
+    sourceStartIndex: matches.length ? Math.min(...matches.map((match) => match.rowIndex)) : null,
+    historyRangeUsed: checkedIndexes.length ? Math.max(...checkedIndexes) + 1 : 0,
+    searchRowsChecked: phases.reduce((total, phase) => total + phase.rowsChecked, 0),
+  }
+}
+
+export function collectFirstFoundWinDigits(history, fg) {
+  const rows = (Array.isArray(history) ? history : [])
+    .map(normalizeResult)
+    .filter(Boolean)
+    .slice(0, MAX_SEARCH_WINDOW)
+
   if (!rows.length) throw new Error('WIN6XGEN ต้องมีข้อมูลย้อนหลัง')
 
-  const strategies = [
-    { mode: 'F+G', targets: [f, g] },
-    { mode: 'F', targets: [f] },
-    { mode: 'G', targets: [g] },
-  ]
+  const f = validateSearchDigit(fg?.f, 'F')
+  const g = validateSearchDigit(fg?.g, 'G')
+  const candidatePool = []
+  const phases = []
 
-  for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
-    for (const strategy of strategies) {
-      const match = firstMatchInWindow(rows, strategy.targets, window)
-      if (!match) continue
-
-      return {
-        mode: strategy.mode,
-        target: strategy.targets,
-        searchWindowUsed: window,
-        match,
-      }
+  for (const search of buildSearchPhases(f, g)) {
+    const phaseRows = rows.slice(search.startIndex, search.startIndex + search.limit)
+    const phase = {
+      mode: search.mode,
+      label: search.label,
+      targets: [...search.targets],
+      extra: search.extra,
+      startIndex: search.startIndex,
+      rowsChecked: 0,
+      checkedRowIndexes: [],
+      matchedRows: [],
+      candidateCountBefore: candidatePool.length,
     }
-  }
 
-  throw new Win6XgenError(
-    'SOURCE_NOT_FOUND',
-    `ไม่พบ F+G, F=${f} หรือ G=${g} ภายใน 8 งวดย้อนหลัง`,
-    { f, g, historyChecked: Math.min(rows.length, MAX_SEARCH_WINDOW) },
-  )
-}
+    for (let offset = 0; offset < phaseRows.length; offset += 1) {
+      const row = phaseRows[offset]
+      const rowIndex = search.startIndex + offset
+      phase.rowsChecked += 1
+      phase.checkedRowIndexes.push(rowIndex)
 
-export function collectWinDigits(history, fg, sourceSearch) {
-  const rows = (Array.isArray(history) ? history : []).map(normalizeResult).filter(Boolean)
-  const sourceStartIndex = sourceSearch?.match?.rowIndex
+      if (!rowContainsTargets(row, search.targets)) continue
 
-  if (!Number.isInteger(sourceStartIndex) || sourceStartIndex < 0 || sourceStartIndex >= rows.length) {
-    throw new Win6XgenError('INVALID_SOURCE', 'ไม่พบตำแหน่งงวดเริ่มต้นสำหรับจัด WIN6')
-  }
-
-  const baseDigits = uniqueFirst([fg.f, fg.g])
-  const rowsFromSource = rows.slice(sourceStartIndex)
-  let historyPool = [...baseDigits]
-  let collectionRowsUsed = 0
-
-  for (let window = INITIAL_SEARCH_WINDOW; window <= MAX_SEARCH_WINDOW; window += 1) {
-    const rowsUsed = rowsFromSource.slice(0, window)
-    historyPool = uniqueFirst([
-      ...baseDigits,
-      ...rowsUsed.flatMap(resultDigits),
-    ]).slice(0, MAX_WIN_DIGITS)
-    collectionRowsUsed = rowsUsed.length
-
-    if (historyPool.length >= 6) {
-      return {
-        baseDigits,
-        candidatePool: historyPool,
-        collectionWindowUsed: window,
-        collectionRowsUsed,
-        sourceStartIndex,
-        shadowDigitsAdded: [],
-        usedShadowFill: false,
+      const addedDigits = []
+      for (const digit of resultDigits(row)) {
+        if (candidatePool.length >= MAX_WIN_DIGITS) break
+        if (candidatePool.includes(digit)) continue
+        candidatePool.push(digit)
+        addedDigits.push(digit)
       }
+
+      phase.matchedRows.push({
+        rowIndex,
+        row,
+        addedDigits,
+        candidateCountAfter: candidatePool.length,
+      })
+
+      if (candidatePool.length >= MAX_WIN_DIGITS) break
     }
-  }
 
-  const shadowCandidates = uniqueFirst([shadowDigit(fg.f), shadowDigit(fg.g)])
-  const shadowDigitsAdded = shadowCandidates.filter((digit) => !historyPool.includes(digit))
-  const candidatePool = uniqueFirst([...historyPool, ...shadowDigitsAdded]).slice(0, MAX_WIN_DIGITS)
+    phase.candidateCountAfter = candidatePool.length
+    phases.push(phase)
 
-  if (candidatePool.length >= 6) {
-    return {
-      baseDigits,
-      candidatePool,
-      collectionWindowUsed: MAX_SEARCH_WINDOW,
-      collectionRowsUsed,
-      sourceStartIndex,
-      shadowDigitsAdded,
-      usedShadowFill: true,
+    if (candidatePool.length >= 6) {
+      return collectionSummary(candidatePool, phases, search)
     }
   }
 
   throw new Win6XgenError(
     'INSUFFICIENT_WIN_DIGITS',
-    'ไล่ย้อนหลังถึงงวดที่ 8 และเติมเงา F/G แล้วยังมีเลขไม่ครบ 6 ตัว',
+    'ค้นครบ FG, F, G และ Extra ตามลำดับแล้วยังมีเลขที่พบจริงไม่ครบ 6 ตัว',
     {
-      baseDigits,
-      candidatePool,
-      historyPool,
-      shadowCandidates,
-      shadowDigitsAdded,
-      sourceStartIndex,
-      collectionRowsAvailable: Math.min(rowsFromSource.length, MAX_SEARCH_WINDOW),
+      f,
+      g,
+      candidatePool: [...candidatePool],
+      phases,
+      historyChecked: rows.length,
+      searchOrder: buildSearchPhases(f, g).map((phase) => phase.mode),
     },
   )
 }
 
 function normalizeWinDigits(values) {
-  return uniqueFirst(Array.isArray(values) ? values : []).slice(0, MAX_WIN_DIGITS)
+  return uniqueFirst(Array.isArray(values) ? values : []).slice(0, 6)
 }
 
 export function buildPin2(winDigits) {
   const digits = normalizeWinDigits(winDigits)
   if (digits.length < 6) return []
 
-  return PIN2_TEMPLATES[digits.length].map((positions) => ({
+  return PIN2_TEMPLATE.map((positions) => ({
     pair: positions.map((position) => digits[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
-    usesParenthesizedDigit: positions.includes(6),
+    usesParenthesizedDigit: false,
   }))
 }
 
@@ -244,12 +268,26 @@ export function buildPin3(winDigits) {
   const digits = normalizeWinDigits(winDigits)
   if (digits.length < 6) return []
 
-  return PIN3_TEMPLATES[digits.length].map((positions) => ({
+  return PIN3_TEMPLATE.map((positions) => ({
     triple: positions.map((position) => digits[position]).join(''),
     positions: positions.map((position) => position + 1),
     reversible: true,
-    usesParenthesizedDigit: positions.includes(6),
+    usesParenthesizedDigit: false,
   }))
+}
+
+function buildSourceSearch(collection) {
+  const winning = collection.phases.at(-1)
+  const firstMatch = winning?.matchedRows[0]
+
+  return {
+    mode: winning?.mode || null,
+    target: winning?.targets || [],
+    searchWindowUsed: collection.historyRangeUsed,
+    match: firstMatch ? { row: firstMatch.row, rowIndex: firstMatch.rowIndex } : null,
+    order: collection.phases.map((phase) => phase.mode),
+    phases: collection.phases,
+  }
 }
 
 export function analyzeWin6Xgen(input) {
@@ -264,32 +302,33 @@ export function analyzeWin6Xgen(input) {
   if (!history.length) throw new Error('WIN6XGEN ต้องมีผลย้อนหลังอย่างน้อย 1 งวด')
 
   const fg = calculateFG(source.top3, source.bottom2)
-  const sourceSearch = searchCandidateSources(history, fg.f, fg.g)
-  const collected = collectWinDigits(history, fg, sourceSearch)
+  const collected = collectFirstFoundWinDigits(history, fg)
   const winDigits = collected.candidatePool
   const win6 = winDigits.slice(0, 6)
   const reserve = winDigits.length === MAX_WIN_DIGITS ? winDigits[6] : null
 
   return {
     engine: 'WIN6XGEN',
-    version: '4.1.0',
+    version: '5.0.0',
     source,
     history,
     historyUsed: Math.min(history.length + 1, HISTORY_LIMIT),
     ...fg,
-    sourceSearch,
-    selectionMode: 'HISTORY_FIRST_UNIQUE',
-    baseDigits: collected.baseDigits,
+    sourceSearch: buildSourceSearch(collected),
+    searchPhases: collected.phases,
+    winningPhase: collected.winningPhase,
+    winningPhaseLabel: collected.winningPhaseLabel,
+    selectionMode: 'FIRST_FOUND_SEQUENTIAL',
     candidatePool: winDigits,
-    collectionWindowUsed: collected.collectionWindowUsed,
     collectionRowsUsed: collected.collectionRowsUsed,
-    shadowDigitsAdded: collected.shadowDigitsAdded,
-    usedShadowFill: collected.usedShadowFill,
+    searchRowsChecked: collected.searchRowsChecked,
+    historyRangeUsed: collected.historyRangeUsed,
+    usedExtraSearch: collected.usedExtraSearch,
     sourceStartIndex: collected.sourceStartIndex,
     win6,
     reserve,
-    pinDigits: winDigits,
-    pin2: buildPin2(winDigits),
-    pin3: buildPin3(winDigits),
+    pinDigits: win6,
+    pin2: buildPin2(win6),
+    pin3: buildPin3(win6),
   }
 }
