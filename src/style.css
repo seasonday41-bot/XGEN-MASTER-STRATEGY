@@ -711,6 +711,17 @@ button:focus-visible, input:focus-visible, summary:focus-visible {
 .sheet-dialog[open] { animation: sheetIn .28s ease-out both; }
 .sheet-dialog::backdrop { background: rgba(0,40,31,.48); backdrop-filter: blur(4px); }
 @keyframes sheetIn { from { opacity: 0; transform: translateY(35px); } }
+.market-dialog {
+  height: min(82vh, 720px);
+  height: min(82dvh, 720px);
+}
+.market-dialog[open] { display: flex; flex-direction: column; }
+.market-dialog .market-list {
+  min-height: 0;
+  max-height: none;
+  flex: 1;
+  align-content: start;
+}
 .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 2px 4px 12px; }
 .sheet-head small { color: #0b7858; font-size: 8px; font-weight: 900; letter-spacing: .16em; }
 .sheet-head h2 { margin: 2px 0 0; color: #5e282b; font-size: 20px; }

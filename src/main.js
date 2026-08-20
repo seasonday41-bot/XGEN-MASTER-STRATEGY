@@ -1,6 +1,7 @@
 import '@fontsource-variable/noto-sans-thai'
 import './style.css'
 import { formatCopySection, formatCopyText } from './copy.js'
+import { rankMarketMatches } from './market-search.js'
 import { analyzeSyntraXPattern } from './syntrax-pattern.js'
 import { loadMarketData, loadMarkets } from './supabase.js'
 import { analyzeWin6Xgen } from './win6xgen.js'
@@ -132,7 +133,7 @@ app.innerHTML = `
     <button id="navRefresh" type="button"><span>↻</span><b>รีเฟรช</b></button>
   </nav>
 
-  <dialog id="marketDialog" class="sheet-dialog">
+  <dialog id="marketDialog" class="sheet-dialog market-dialog">
     <div class="sheet-head"><div><small>MARKET SELECTOR</small><h2>เลือกตลาด</h2></div><button type="button" data-close="marketDialog">×</button></div>
     <label class="market-search"><span>⌕</span><input id="marketSearch" type="search" placeholder="ค้นหา เช่น ลาวพัฒนา" autocomplete="off"></label>
     <div id="marketList" class="market-list"></div>
@@ -252,12 +253,10 @@ function openDialog(dialog) {
 }
 
 function renderMarketList(query = '') {
-  const normalized = query.trim().normalize('NFC').toLocaleLowerCase('th-TH')
-  const matches = state.markets.filter((market) =>
-    !normalized || market.market_name.normalize('NFC').toLocaleLowerCase('th-TH').includes(normalized),
-  )
+  const matches = rankMarketMatches(state.markets, query, state.selectedMarket?.market_key)
 
   elements.marketList.replaceChildren()
+  elements.marketList.scrollTop = 0
   if (!matches.length) {
     const empty = document.createElement('p')
     empty.className = 'list-empty'
