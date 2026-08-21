@@ -233,7 +233,7 @@ export function collectFirstFoundWinDigits(history, fg) {
       return collectionSummary(candidatePool, phases, search)
     }
   }
-  }
+  
 
   // fallback เติมเลขให้ครบ 6 ตัว ก่อนแจ้ง error
   if (candidatePool.length < 6) {
