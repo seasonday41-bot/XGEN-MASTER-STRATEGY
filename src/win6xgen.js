@@ -258,7 +258,6 @@ export function collectFirstFoundWinDigits(history, fg) {
     }
   }
 
- 
   throw new Win6XgenError(
     'INSUFFICIENT_WIN_DIGITS',
     'ค้นครบ FG, F, G และ Extra ตามลำดับแล้วยังมีเลขที่พบจริงไม่ครบ 6 ตัว',
