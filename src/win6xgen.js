@@ -233,7 +233,32 @@ export function collectFirstFoundWinDigits(history, fg) {
       return collectionSummary(candidatePool, phases, search)
     }
   }
+  }
 
+  // fallback เติมเลขให้ครบ 6 ตัว ก่อนแจ้ง error
+  if (candidatePool.length < 6) {
+    for (const row of rows) {
+      for (const digit of resultDigits(row)) {
+        if (candidatePool.length >= 6) break
+
+        if (!candidatePool.includes(digit)) {
+          candidatePool.push(digit)
+        }
+      }
+
+      if (candidatePool.length >= 6) break
+    }
+
+    if (candidatePool.length >= 6) {
+      return collectionSummary(
+        candidatePool,
+        phases,
+        phases.at(-1),
+      )
+    }
+  }
+
+ 
   throw new Win6XgenError(
     'INSUFFICIENT_WIN_DIGITS',
     'ค้นครบ FG, F, G และ Extra ตามลำดับแล้วยังมีเลขที่พบจริงไม่ครบ 6 ตัว',
