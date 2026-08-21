@@ -1,5 +1,10 @@
 import { analyzeSyntraXPattern } from "./syntrax-pattern.js";
+console.log("SyntraX Predict Loaded");
 
+import { analyzeSyntraXPattern } from "./syntrax-pattern.js";
+
+
+export function predictNextPattern(history = []) {
 
 export function predictNextPattern(history = []) {
 
