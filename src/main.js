@@ -417,11 +417,14 @@ function analyzeHistoryAt(index) {
 
   const core = analyzeWin6Xgen({ ...source, history })
   const pattern = analyzeSyntraXPattern(core.source, core.history, core.rud)
+  const prediction = predictNextPattern(state.rows)
   return {
     marketName: state.selectedMarket.market_name,
     allRows: state.rows,
     ...core,
     pattern,
+  prediction,
+}
   }
 }
 
@@ -463,6 +466,7 @@ function renderResult(analysis) {
   elements.pin3.innerHTML = analysis.pin3.map((item, index) => `<b class="${index === 0 ? 'recommended' : index === 1 ? 'secondary' : ''}">${item.triple}</b>`).join('')
 
   renderPattern(analysis.pattern)
+  console.log("Pattern Prediction:", analysis.prediction)
   elements.infoMarket.textContent = analysis.marketName
   elements.historyUsed.textContent = `อ้างอิง ${analysis.historyUsed} งวด`
   elements.systemStatus.textContent = 'พร้อมใช้งาน'
