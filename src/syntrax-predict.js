@@ -1,24 +1,22 @@
 import { analyzeSyntraXPattern } from "./syntrax-pattern.js";
+
 console.log("SyntraX Predict Loaded");
 
-import { analyzeSyntraXPattern } from "./syntrax-pattern.js";
-
 
 export function predictNextPattern(history = []) {
 
-export function predictNextPattern(history = []) {
-
-    if(history.length < 3){
+    if (history.length < 3) {
         return {
-            pattern:"ข้อมูลไม่พอ"
+            prediction: "NORMAL",
+            double: "0%",
+            sibling: "0%"
         };
     }
 
 
-    const result =
-        history
-        .slice(0,10)
-        .map(row =>
+    const result = history
+        .slice(0, 10)
+        .map((row) =>
             analyzeSyntraXPattern(
                 row,
                 history
@@ -30,13 +28,13 @@ export function predictNextPattern(history = []) {
     let siblingScore = 0;
 
 
-    result.forEach(item=>{
+    result.forEach((item) => {
 
-        if(item.current.hasDouble){
+        if (item.current?.hasDouble) {
             doubleScore++;
         }
 
-        if(item.current.hasSibling){
+        if (item.current?.hasSibling) {
             siblingScore++;
         }
 
@@ -49,49 +47,43 @@ export function predictNextPattern(history = []) {
         1;
 
 
-    const doublePercent =
-        Math.round(
-            doubleScore / total * 100
-        );
+    const doublePercent = Math.round(
+        (doubleScore / total) * 100
+    );
 
 
-    const siblingPercent =
-        Math.round(
-            siblingScore / total * 100
-        );
+    const siblingPercent = Math.round(
+        (siblingScore / total) * 100
+    );
 
 
+    let prediction = "NORMAL";
 
-    let prediction="NORMAL";
 
-
-    if(doublePercent > siblingPercent
-       && doublePercent >= 40){
-
-        prediction="DOUBLE";
-
+    if (
+        doublePercent > siblingPercent &&
+        doublePercent >= 40
+    ) {
+        prediction = "DOUBLE";
     }
 
 
-    if(siblingPercent > doublePercent
-       && siblingPercent >= 40){
-
-        prediction="SIBLING";
-
+    if (
+        siblingPercent > doublePercent &&
+        siblingPercent >= 40
+    ) {
+        prediction = "SIBLING";
     }
-
 
 
     return {
-
         prediction,
 
         double:
-            doublePercent+"%",
+            doublePercent + "%",
 
         sibling:
-            siblingPercent+"%"
-
+            siblingPercent + "%"
     };
 
 }
