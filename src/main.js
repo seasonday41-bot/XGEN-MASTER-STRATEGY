@@ -424,7 +424,6 @@ function analyzeHistoryAt(index) {
     ...core,
     pattern,
   prediction,
-}
   }
 }
 
