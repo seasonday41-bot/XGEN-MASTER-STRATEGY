@@ -1,4 +1,4 @@
-export const HISTORY_LIMIT = 30
+export const HISTORY_LIMIT = 20
 export const PRIMARY_SEARCH_LIMIT = 5
 export const EXTRA_SEARCH_LIMIT = 3
 export const INITIAL_SEARCH_WINDOW = PRIMARY_SEARCH_LIMIT
