@@ -2,7 +2,7 @@ export const HISTORY_LIMIT = 30
 export const PRIMARY_SEARCH_LIMIT = 5
 export const EXTRA_SEARCH_LIMIT = 3
 export const INITIAL_SEARCH_WINDOW = PRIMARY_SEARCH_LIMIT
-export const MAX_SEARCH_WINDOW = PRIMARY_SEARCH_LIMIT + EXTRA_SEARCH_LIMIT
+export const MAX_SEARCH_WINDOW = HISTORY_LIMIT
 export const MAX_WIN_DIGITS = 7
 
 export class Win6XgenError extends Error {
@@ -177,7 +177,7 @@ export function collectFirstFoundWinDigits(history, fg) {
   const rows = (Array.isArray(history) ? history : [])
     .map(normalizeResult)
     .filter(Boolean)
-    .slice(0, MAX_SEARCH_WINDOW)
+    .slice(0, HISTORY_LIMIT)
 
   if (!rows.length) throw new Error('WIN6XGEN ต้องมีข้อมูลย้อนหลัง')
 
