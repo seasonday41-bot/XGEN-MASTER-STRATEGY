@@ -1,6 +1,6 @@
 import '@fontsource-variable/noto-sans-thai'
 import './style.css'
-import "./syntrax-predict.js";
+import { predictNextPattern } from './syntrax-predict.js'
 import { formatCopySection, formatCopyText } from './copy.js'
 import { rankMarketMatches } from './market-search.js'
 import { analyzeSyntraXPattern } from './syntrax-pattern.js'
