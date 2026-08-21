@@ -84,9 +84,13 @@ export function formatCopyText(result) {
     '',
     `🎯 เจาะ 2 ${spaced(result.pin2.map((item) => item.pair))}`,
     `🎯 เจาะ 3 ${spaced(result.pin3.map((item) => item.triple))}`,
-    '',
-    `🧬 Prediction: ${result.prediction?.prediction || '-'}`,
-    `📊 โอกาส เบิ้ล ${result.prediction?.double || '-'} • พี่น้อง ${result.prediction?.sibling || '-'}`
+
+    ...(result.prediction ? [
+      '',
+      `🧬 Prediction: ${result.prediction.prediction || '-'}`,
+      `📊 โอกาส เบิ้ล ${result.prediction.double || '-'} • พี่น้อง ${result.prediction.sibling || '-'}`
+    ] : [])
+
   ].join('\n')
 }
 
