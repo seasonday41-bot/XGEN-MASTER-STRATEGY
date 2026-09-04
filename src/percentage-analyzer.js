@@ -217,6 +217,14 @@ export function bestPercents(byPercent) {
   return available.filter((percent) => Math.abs(byPercent[percent].rate - maxRate) < 0.000001)
 }
 
+function percentPriority(overall) {
+  return [...TEST_PERCENTS].sort((left, right) => (
+    (overall?.[right]?.rate || 0) - (overall?.[left]?.rate || 0)
+    || (overall?.[right]?.anyHits || 0) - (overall?.[left]?.anyHits || 0)
+    || right - left
+  ))
+}
+
 function createScoreEntry(digit, firstSeen = 999) {
   return {
     digit,
@@ -244,32 +252,93 @@ function pairKey(a, b) {
   return a <= b ? `${a}${b}` : `${b}${a}`
 }
 
-function sameFormulaBonus(a, b, calculations) {
-  return TEST_PERCENTS.some((percent) => {
-    const digits = calculations[percent].digits
-    return digits.includes(a) && digits.includes(b)
-  }) ? 1.5 : 0
+function pairDigits(key) {
+  return key.split('').map(Number)
 }
 
-function buildPairCandidates(ranked, calculations) {
-  const pool = ranked.slice(0, 7)
-  const pairs = []
+function pairBehaviorBonus(a, b) {
+  let bonus = 0
+  if (isSibling(a, b)) bonus += 0.8
+  if (SHADOW_MAP[a] === b || SHADOW_MAP[b] === a) bonus += 0.8
+  return bonus
+}
 
-  for (let left = 0; left < pool.length; left += 1) {
-    for (let right = left + 1; right < pool.length; right += 1) {
-      const a = pool[left]
-      const b = pool[right]
-      let score = a.score + b.score + sameFormulaBonus(a.digit, b.digit, calculations)
-      if (isSibling(a.digit, b.digit)) score += 0.8
-      if (SHADOW_MAP[a.digit] === b.digit) score += 0.8
-      pairs.push({ digits: [a.digit, b.digit], score })
+function buildPairCandidates(ranked, calculations, priority = TEST_PERCENTS) {
+  const entryMap = new Map(ranked.map((entry) => [entry.digit, entry]))
+  const hottestDigit = ranked[0]?.digit
+  const normalizedPriority = [
+    ...priority.filter((percent) => TEST_PERCENTS.includes(percent)),
+    ...TEST_PERCENTS.filter((percent) => !priority.includes(percent)),
+  ]
+  const perFormula = {}
+
+  TEST_PERCENTS.forEach((percent) => {
+    const formulaDigits = unique(calculations[percent].digits)
+    const candidates = []
+
+    for (let left = 0; left < formulaDigits.length; left += 1) {
+      for (let right = left + 1; right < formulaDigits.length; right += 1) {
+        const key = pairKey(formulaDigits[left], formulaDigits[right])
+        const [a, b] = pairDigits(key)
+        const aEntry = entryMap.get(a)
+        const bEntry = entryMap.get(b)
+        if (!aEntry || !bEntry) continue
+
+        candidates.push({
+          key,
+          percent,
+          score: aEntry.score + bEntry.score + pairBehaviorBonus(a, b),
+        })
+      }
+    }
+
+    perFormula[percent] = candidates.sort((left, right) => (
+      right.score - left.score
+      || Number(left.key) - Number(right.key)
+    ))
+  })
+
+  const selected = []
+  const seen = new Set()
+  const selectedByFormula = Object.fromEntries(TEST_PERCENTS.map((percent) => [percent, 0]))
+  let hottestUses = 0
+
+  // เลือกแบบวนสูตรตามผลงานย้อนหลัง เพื่อไม่ให้สูตรเดียวหรือเลขแรงตัวเดียวกินคู่เกือบทั้งหมด
+  for (let round = 0; round < 2; round += 1) {
+    normalizedPriority.forEach((percent) => {
+      if (selected.length >= 6 || selectedByFormula[percent] >= 2) return
+      const candidates = perFormula[percent] || []
+
+      const candidate = candidates.find((item) => {
+        if (seen.has(item.key)) return false
+        const containsHottest = hottestDigit != null && pairDigits(item.key).includes(hottestDigit)
+        if (containsHottest && hottestUses >= 2) return false
+        return true
+      })
+
+      if (!candidate) return
+      selected.push(candidate)
+      seen.add(candidate.key)
+      selectedByFormula[percent] += 1
+      if (hottestDigit != null && pairDigits(candidate.key).includes(hottestDigit)) hottestUses += 1
+    })
+  }
+
+  // กรณีสูตรใดมีเลขไม่พอสร้าง 2 คู่ ให้เติมจาก candidate ที่เหลือโดยยังคงห้ามคู่ซ้ำ
+  if (selected.length < 6) {
+    const fallback = TEST_PERCENTS
+      .flatMap((percent) => perFormula[percent] || [])
+      .filter((item) => !seen.has(item.key))
+      .sort((left, right) => right.score - left.score || Number(left.key) - Number(right.key))
+
+    for (const candidate of fallback) {
+      if (selected.length >= 6) break
+      selected.push(candidate)
+      seen.add(candidate.key)
     }
   }
 
-  return pairs
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
-    .map((pair) => pair.digits.join(''))
+  return selected.slice(0, 6).map((item) => item.key)
 }
 
 function buildTripleCandidates(ranked, calculations) {
@@ -290,12 +359,18 @@ function buildTripleCandidates(ranked, calculations) {
   }
 
   return triples
-    .sort((a, b) => b.score - a.score)
+    .sort((left, right) => right.score - left.score)
     .slice(0, 3)
     .map((triple) => triple.digits.join(''))
 }
 
-export function buildFusionRecommendation(latest, calculations, dayBest = [], numberBest = []) {
+export function buildFusionRecommendation(
+  latest,
+  calculations,
+  dayBest = [],
+  numberBest = [],
+  priority = TEST_PERCENTS,
+) {
   const normalized = normalizeResult(latest)
   if (!normalized) throw new Error('ผลล่าสุดไม่ถูกต้อง')
 
@@ -371,7 +446,7 @@ export function buildFusionRecommendation(latest, calculations, dayBest = [], nu
     secondary,
     win6,
     win7,
-    pairs: buildPairCandidates(ranked, calculations),
+    pairs: buildPairCandidates(ranked, calculations, priority),
     triples: buildTripleCandidates(ranked, calculations),
     behavior: {
       shadows,
@@ -417,6 +492,7 @@ export function analyzePercentageHistory(rows) {
   const transitions = buildTransitions(rows)
   const overall = aggregateTransitions(transitions)
   const fusionOverall = aggregateFusion(transitions)
+  const priority = percentPriority(overall)
 
   const byDay = {}
   WEEKDAY_LABELS.forEach((label, dayIndex) => {
@@ -469,7 +545,7 @@ export function analyzePercentageHistory(rows) {
       numberBest,
       strongMatch,
       calculations,
-      fusion: buildFusionRecommendation(latest, calculations, dayBest, numberBest),
+      fusion: buildFusionRecommendation(latest, calculations, dayBest, numberBest, priority),
     }
   }
 
@@ -478,6 +554,7 @@ export function analyzePercentageHistory(rows) {
     overall,
     fusionOverall,
     overallBestPercents: bestPercents(overall),
+    percentPriority: priority,
     byDay,
     byHundreds,
     recommendation,
