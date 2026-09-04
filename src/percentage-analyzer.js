@@ -10,10 +10,37 @@ export const HUNDRED_GROUP_LABELS = {
   'odd-high': 'คี่สูง 5 • 7 • 9',
 }
 
+export const SHADOW_MAP = {
+  0: 5,
+  1: 6,
+  2: 7,
+  3: 8,
+  4: 9,
+  5: 0,
+  6: 1,
+  7: 2,
+  8: 3,
+  9: 4,
+}
+
 function parseTop3(top3) {
   const value = String(top3 ?? '').trim().padStart(3, '0')
   if (!/^\d{3}$/.test(value)) throw new Error('3 ตัวบนต้องเป็นตัวเลข 3 หลัก')
   return value
+}
+
+function mod10(value) {
+  return ((Number(value) % 10) + 10) % 10
+}
+
+function unique(values) {
+  return [...new Set(values)]
+}
+
+function digitCounts(values) {
+  const counts = new Map()
+  values.forEach((digit) => counts.set(digit, (counts.get(digit) || 0) + 1))
+  return counts
 }
 
 export function calculatePercentDigits(top3, percent) {
@@ -35,10 +62,9 @@ export function calculatePercentDigits(top3, percent) {
 }
 
 function consumeMatches(sourceDigits, targetDigits) {
-  const counts = new Map()
-  sourceDigits.forEach((digit) => counts.set(digit, (counts.get(digit) || 0) + 1))
-
+  const counts = digitCounts(sourceDigits)
   const matched = []
+
   targetDigits.forEach((digit) => {
     const remaining = counts.get(digit) || 0
     if (remaining > 0) {
@@ -92,6 +118,15 @@ export function classifyHundreds(top3) {
   }
 }
 
+function buildFusionTest(tests, next) {
+  const digits = TEST_PERCENTS.flatMap((percent) => tests[percent].digits)
+  return {
+    digits,
+    uniqueDigits: unique(digits),
+    ...evaluateCalculatedDigits(digits, next),
+  }
+}
+
 export function buildTransitions(rows) {
   const normalized = (rows || [])
     .map(normalizeResult)
@@ -121,6 +156,7 @@ export function buildTransitions(rows) {
       dayLabel: WEEKDAY_LABELS[dayIndex],
       hundreds,
       tests,
+      fusion: buildFusionTest(tests, next),
     })
   }
 
@@ -138,6 +174,11 @@ function emptyStats() {
   }
 }
 
+function finalizeStats(stats) {
+  stats.rate = stats.total ? (stats.anyHits / stats.total) * 100 : 0
+  return stats
+}
+
 function aggregateTransitions(transitions) {
   const byPercent = Object.fromEntries(TEST_PERCENTS.map((percent) => [percent, emptyStats()]))
 
@@ -153,12 +194,20 @@ function aggregateTransitions(transitions) {
     })
   })
 
-  TEST_PERCENTS.forEach((percent) => {
-    const stats = byPercent[percent]
-    stats.rate = stats.total ? (stats.anyHits / stats.total) * 100 : 0
-  })
-
+  TEST_PERCENTS.forEach((percent) => finalizeStats(byPercent[percent]))
   return byPercent
+}
+
+function aggregateFusion(transitions) {
+  const stats = emptyStats()
+  transitions.forEach((transition) => {
+    stats.total += 1
+    if (transition.fusion.anyHit) stats.anyHits += 1
+    if (transition.fusion.topHit) stats.topHits += 1
+    if (transition.fusion.bottomHit) stats.bottomHits += 1
+    if (transition.fusion.bothHit) stats.bothHits += 1
+  })
+  return finalizeStats(stats)
 }
 
 export function bestPercents(byPercent) {
@@ -168,9 +217,206 @@ export function bestPercents(byPercent) {
   return available.filter((percent) => Math.abs(byPercent[percent].rate - maxRate) < 0.000001)
 }
 
+function createScoreEntry(digit, firstSeen = 999) {
+  return {
+    digit,
+    score: 0,
+    formulaCount: 0,
+    occurrences: 0,
+    firstSeen,
+    reasons: new Set(),
+  }
+}
+
+function addScore(entries, digit, amount, reason, firstSeen = 999) {
+  if (!entries.has(digit)) entries.set(digit, createScoreEntry(digit, firstSeen))
+  const entry = entries.get(digit)
+  entry.score += amount
+  entry.firstSeen = Math.min(entry.firstSeen, firstSeen)
+  if (reason) entry.reasons.add(reason)
+}
+
+function isSibling(a, b) {
+  return mod10(a + 1) === b || mod10(b + 1) === a
+}
+
+function pairKey(a, b) {
+  return a <= b ? `${a}${b}` : `${b}${a}`
+}
+
+function sameFormulaBonus(a, b, calculations) {
+  return TEST_PERCENTS.some((percent) => {
+    const digits = calculations[percent].digits
+    return digits.includes(a) && digits.includes(b)
+  }) ? 1.5 : 0
+}
+
+function buildPairCandidates(ranked, calculations) {
+  const pool = ranked.slice(0, 7)
+  const pairs = []
+
+  for (let left = 0; left < pool.length; left += 1) {
+    for (let right = left + 1; right < pool.length; right += 1) {
+      const a = pool[left]
+      const b = pool[right]
+      let score = a.score + b.score + sameFormulaBonus(a.digit, b.digit, calculations)
+      if (isSibling(a.digit, b.digit)) score += 0.8
+      if (SHADOW_MAP[a.digit] === b.digit) score += 0.8
+      pairs.push({ digits: [a.digit, b.digit], score })
+    }
+  }
+
+  return pairs
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6)
+    .map((pair) => pair.digits.join(''))
+}
+
+function buildTripleCandidates(ranked, calculations) {
+  const pool = ranked.slice(0, 6)
+  const triples = []
+
+  for (let a = 0; a < pool.length; a += 1) {
+    for (let b = a + 1; b < pool.length; b += 1) {
+      for (let c = b + 1; c < pool.length; c += 1) {
+        const digits = [pool[a], pool[b], pool[c]]
+        let score = digits.reduce((sum, entry) => sum + entry.score, 0)
+        if (TEST_PERCENTS.some((percent) => digits.every((entry) => calculations[percent].digits.includes(entry.digit)))) {
+          score += 1.5
+        }
+        triples.push({ digits: digits.map((entry) => entry.digit), score })
+      }
+    }
+  }
+
+  return triples
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3)
+    .map((triple) => triple.digits.join(''))
+}
+
+export function buildFusionRecommendation(latest, calculations, dayBest = [], numberBest = []) {
+  const normalized = normalizeResult(latest)
+  if (!normalized) throw new Error('ผลล่าสุดไม่ถูกต้อง')
+
+  const entries = new Map()
+  let appearance = 0
+
+  TEST_PERCENTS.forEach((percent) => {
+    const digits = calculations[percent].digits
+    const counts = digitCounts(digits)
+    unique(digits).forEach((digit) => {
+      addScore(entries, digit, 2, `อยู่ในชุด ${percent}`, appearance)
+      const entry = entries.get(digit)
+      entry.formulaCount += 1
+      entry.occurrences += counts.get(digit) || 0
+      if ((counts.get(digit) || 0) > 1) addScore(entries, digit, 0.5, 'เกิดซ้ำในผลคำนวณ', appearance)
+      if (dayBest.includes(percent)) addScore(entries, digit, 1.4, 'DAY MODEL รองรับ', appearance)
+      if (numberBest.includes(percent)) addScore(entries, digit, 1.4, 'NUMBER MODEL รองรับ', appearance)
+      appearance += 1
+    })
+  })
+
+  const sourceDigits = unique(normalized.top3.split('').map(Number))
+  const plusMinus1 = unique(sourceDigits.flatMap((digit) => [mod10(digit - 1), mod10(digit + 1)]))
+  const plusMinus2 = unique(sourceDigits.flatMap((digit) => [mod10(digit - 2), mod10(digit + 2)]))
+  const shadows = unique(sourceDigits.map((digit) => SHADOW_MAP[digit]))
+
+  plusMinus1.forEach((digit) => addScore(entries, digit, 0.9, 'ขยับ ±1'))
+  plusMinus2.forEach((digit) => addScore(entries, digit, 0.6, 'ขยับ ±2'))
+  shadows.forEach((digit) => addScore(entries, digit, 0.7, 'เลขเงา'))
+
+  const ranked = [...entries.values()]
+    .map((entry) => ({ ...entry, reasons: [...entry.reasons] }))
+    .sort((left, right) => (
+      right.score - left.score
+      || right.formulaCount - left.formulaCount
+      || right.occurrences - left.occurrences
+      || left.firstSeen - right.firstSeen
+      || left.digit - right.digit
+    ))
+
+  const rankedDigits = ranked.map((entry) => entry.digit)
+  const win7 = rankedDigits.slice(0, 7)
+  const win6 = rankedDigits.slice(0, 6)
+  const hot = rankedDigits.slice(0, 2)
+  const secondary = rankedDigits.slice(2, 5)
+
+  const formulaCounts = new Map()
+  TEST_PERCENTS.forEach((percent) => {
+    const counts = digitCounts(calculations[percent].digits)
+    counts.forEach((count, digit) => {
+      if (count >= 2) formulaCounts.set(digit, Math.max(formulaCounts.get(digit) || 0, count))
+    })
+  })
+
+  const doubles = [...formulaCounts.keys()]
+    .sort((a, b) => (entries.get(b)?.score || 0) - (entries.get(a)?.score || 0))
+    .slice(0, 3)
+    .map((digit) => `${digit}${digit}`)
+
+  const siblingPairs = []
+  for (let left = 0; left < win7.length; left += 1) {
+    for (let right = left + 1; right < win7.length; right += 1) {
+      if (isSibling(win7[left], win7[right])) {
+        const key = pairKey(win7[left], win7[right])
+        if (!siblingPairs.includes(key)) siblingPairs.push(key)
+      }
+    }
+  }
+
+  return {
+    ranked,
+    hot,
+    secondary,
+    win6,
+    win7,
+    pairs: buildPairCandidates(ranked, calculations),
+    triples: buildTripleCandidates(ranked, calculations),
+    behavior: {
+      shadows,
+      plusMinus1,
+      plusMinus2,
+      siblingPairs: siblingPairs.slice(0, 4),
+      doubles,
+    },
+  }
+}
+
+function joinDigits(values) {
+  return values?.length ? values.join(' • ') : 'ไม่มี'
+}
+
+function joinSets(values) {
+  return values?.length ? values.join(' • ') : 'ไม่มี'
+}
+
+export function buildPublicCopy({ marketName, latest, fusion }) {
+  const market = String(marketName || 'XGEN LAB').trim()
+  const result = normalizeResult(latest)
+  if (!result) throw new Error('ไม่มีผลล่าสุดสำหรับคัดลอก')
+
+  return [
+    `🧬 XGEN LAB | ${market}`,
+    `ผลล่าสุด ${result.top3}-${result.bottom2}`,
+    '',
+    `🔥 ตัวแรง ${joinDigits(fusion.hot)}`,
+    `⭐ ตัวรอง ${joinDigits(fusion.secondary)}`,
+    `✨ WIN7 ${joinDigits(fusion.win7)}`,
+    '',
+    `🎯 เจาะ 2 ${joinSets(fusion.pairs)}`,
+    `🎯 เจาะ 3 ${joinSets(fusion.triples)}`,
+    '',
+    `🪞 เงา ${joinDigits(fusion.behavior.shadows)}`,
+    `👯 พี่น้อง ${joinSets(fusion.behavior.siblingPairs)}`,
+    `🔄 เบิ้ล ${joinSets(fusion.behavior.doubles)}`,
+  ].join('\n')
+}
+
 export function analyzePercentageHistory(rows) {
   const transitions = buildTransitions(rows)
   const overall = aggregateTransitions(transitions)
+  const fusionOverall = aggregateFusion(transitions)
 
   const byDay = {}
   WEEKDAY_LABELS.forEach((label, dayIndex) => {
@@ -179,6 +425,7 @@ export function analyzePercentageHistory(rows) {
       label,
       transitions: group,
       byPercent: aggregateTransitions(group),
+      fusion: aggregateFusion(group),
     }
     byDay[dayIndex].bestPercents = bestPercents(byDay[dayIndex].byPercent)
   })
@@ -191,6 +438,7 @@ export function analyzePercentageHistory(rows) {
       label: HUNDRED_GROUP_LABELS[key],
       transitions: group,
       byPercent: aggregateTransitions(group),
+      fusion: aggregateFusion(group),
     }
     byHundreds[key].bestPercents = bestPercents(byHundreds[key].byPercent)
   })
@@ -208,6 +456,9 @@ export function analyzePercentageHistory(rows) {
     const dayBest = byDay[dayIndex]?.bestPercents || []
     const numberBest = byHundreds[hundreds.key]?.bestPercents || []
     const strongMatch = dayBest.filter((percent) => numberBest.includes(percent))
+    const calculations = Object.fromEntries(
+      TEST_PERCENTS.map((percent) => [percent, calculatePercentDigits(latest.top3, percent)]),
+    )
 
     recommendation = {
       latest,
@@ -217,15 +468,15 @@ export function analyzePercentageHistory(rows) {
       dayBest,
       numberBest,
       strongMatch,
-      calculations: Object.fromEntries(
-        TEST_PERCENTS.map((percent) => [percent, calculatePercentDigits(latest.top3, percent)]),
-      ),
+      calculations,
+      fusion: buildFusionRecommendation(latest, calculations, dayBest, numberBest),
     }
   }
 
   return {
     transitions,
     overall,
+    fusionOverall,
     overallBestPercents: bestPercents(overall),
     byDay,
     byHundreds,
