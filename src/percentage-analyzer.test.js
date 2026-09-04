@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  TEST_PERCENTS,
   analyzePercentageHistory,
+  buildFusionRecommendation,
   buildPublicCopy,
   calculatePercentDigits,
   classifyHundreds,
@@ -79,5 +81,23 @@ describe('percentage analyzer', () => {
     expect(text).not.toContain('×')
     expect(text).not.toContain('DAY MODEL')
     expect(text).not.toContain('NUMBER MODEL')
+  })
+
+  it('creates pair picks inside each formula before fusion ranking', () => {
+    const calculations = Object.fromEntries(
+      TEST_PERCENTS.map((percent) => [percent, calculatePercentDigits('661', percent)]),
+    )
+
+    const fusion = buildFusionRecommendation(
+      { top3: '661', bottom2: '79' },
+      calculations,
+      [7, 8, 9],
+      [9],
+      [8, 9, 7],
+    )
+
+    expect(fusion.pairs).toEqual(['25', '45', '24', '28', '49', '47'])
+    expect(fusion.pairs).not.toContain('59')
+    expect(fusion.pairs).not.toContain('58')
   })
 })
