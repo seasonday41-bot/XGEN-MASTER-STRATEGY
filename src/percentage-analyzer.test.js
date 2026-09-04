@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   analyzePercentageHistory,
+  buildPublicCopy,
   calculatePercentDigits,
   classifyHundreds,
   evaluateCalculatedDigits,
@@ -51,5 +52,32 @@ describe('percentage analyzer', () => {
     expect(analysis.transitions[0].dayLabel).toBe('จันทร์')
     expect(analysis.transitions[0].next.top3).toBe('659')
     expect(analysis.transitions[1].dayLabel).toBe('อังคาร')
+  })
+
+  it('builds a fusion win from all three calculations and keeps public copy free of formulas', () => {
+    const rows = [
+      { draw_date: '2026-09-01', top3: '475', bottom2: '84' },
+      { draw_date: '2026-09-02', top3: '351', bottom2: '53' },
+      { draw_date: '2026-09-03', top3: '088', bottom2: '50' },
+    ]
+    const analysis = analyzePercentageHistory(rows)
+    const fusion = analysis.recommendation.fusion
+
+    expect(fusion.win7.length).toBeGreaterThanOrEqual(6)
+    expect(new Set(fusion.win7).size).toBe(fusion.win7.length)
+    expect(fusion.pairs.length).toBeGreaterThan(0)
+
+    const text = buildPublicCopy({
+      marketName: 'ตลาดทดลอง',
+      latest: analysis.recommendation.latest,
+      fusion,
+    })
+
+    expect(text).toContain('XGEN LAB')
+    expect(text).toContain('WIN7')
+    expect(text).not.toContain('%')
+    expect(text).not.toContain('×')
+    expect(text).not.toContain('DAY MODEL')
+    expect(text).not.toContain('NUMBER MODEL')
   })
 })
